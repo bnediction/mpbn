@@ -36,7 +36,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         for n, f in bn.items():
             self[n] = self.ba.dnf(f).simplify()
 
-    def _bn_asp(self):
+    def asp_of_bn(self):
         def clauses_of_dnf(f):
             if f == self.ba.FALSE:
                 return []
@@ -56,8 +56,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         for n, f in self.items():
             facts.append("node(\"{}\").".format(n))
             for cid, c in enumerate(clauses_of_dnf(f)):
+                facts.append("\n")
                 for m, v in literals_of_clause(c):
-                    facts.append("clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
+                    facts.append(" clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
+            facts.append("\n")
         return "".join(facts)
 
     def attractors(self, limit=0, star='*', yield_=False):
@@ -66,7 +68,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         s = clingo_subsets(limit=limit)
         s.load(aspf("mp_attractor.asp"))
-        s.add("base", [], self._bn_asp())
+        s.add("base", [], self.asp_of_bn())
         s.ground([("base",[])])
         if not yield_:
             results = []
