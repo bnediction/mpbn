@@ -1,8 +1,5 @@
 
-# TODO: input from minibn
-# TODO: convert to DNF, simplify
 # TODO: check local-monotonicity
-# TODO: export to ASP
 # TODO: reachability
 
 import os
@@ -18,7 +15,6 @@ def clingo_subsets(limit=0):
     s = clingo.Control()
     s.configuration.solve.models = limit
     s.configuration.solve.project = 1
-    # subset solutions only
     s.configuration.solve.enum_mode = "domRec"
     s.configuration.solver[0].heuristic = "Domain"
     s.configuration.solver[0].dom_mod = "5,16"
@@ -32,11 +28,35 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         TODO
         """
-        super(self, MPBooleanNetwork).__init__(XXX)
-        raise NotImplementedError
+        assert isinstance(bn, minibn.BooleanNetwork)
+        super(MPBooleanNetwork, self).__init__()
+        self.ba = bn.ba
+        for n, f in bn.items():
+            self[n] = self.ba.dnf(f).simplify()
 
     def _bn_asp(self):
-        raise NotImplementedError
+        def clauses_of_dnf(f):
+            if f == self.ba.FALSE:
+                return []
+            if isinstance(f, self.ba.OR):
+                return f.args
+            else:
+                return [f]
+        def literals_of_clause(c):
+            def make_literal(l):
+                if isinstance(l, self.ba.NOT):
+                    return (l.args[0].obj, -1)
+                else:
+                    return (l.obj, 1)
+            lits = c.args if isinstance(c, self.ba.AND) else [c]
+            return map(make_literal, lits)
+        facts = []
+        for n, f in self.items():
+            facts.append("node(\"{}\").".format(n))
+            for cid, c in enumerate(clauses_of_dnf(f)):
+                for m, v in literals_of_clause(c):
+                    facts.append("clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
+        return "".join(facts)
 
     def attractors(self, limit=0, star='*', yield_=False):
         """
@@ -65,7 +85,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 yield attractor
             else:
                 results.append(attractor)
-        return results
+        if not yield_:
+            return results
 
 
 def load(bn):
@@ -73,8 +94,4 @@ def load(bn):
     TODO
     """
     return MPBooleanNetwork(bn)
-
-
-if __name__ == "__main__":
-    raise NotImplementedError
 
