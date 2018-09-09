@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+clingo --heuristic Domain --enum-mode domRec --dom-mod 5,16 --project 0 "${@}"
