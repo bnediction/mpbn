@@ -1,4 +1,6 @@
 
+__version__ = "0.1a0"
+
 # TODO: check local-monotonicity
 # TODO: reachability
 
