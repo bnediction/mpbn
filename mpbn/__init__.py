@@ -38,6 +38,13 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         TODO
         """
+        if isinstance(bn, str):
+            if "\n" in bn or not os.path.exists(bn):
+                bn = minibn.BooleanNetwork(bn)
+            else:
+                bn = minibn.BooleanNetwork.load(bn)
+        elif isinstance(bn, dict):
+            bn = minibn.BooleanNetwork(bn)
         assert isinstance(bn, minibn.BooleanNetwork)
         super(MPBooleanNetwork, self).__init__()
         self.ba = bn.ba
@@ -128,11 +135,4 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 else:
                     attractor[n] = v
             yield attractor
-
-
-def load(bn):
-    """
-    TODO
-    """
-    return MPBooleanNetwork(bn)
 
