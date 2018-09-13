@@ -1,12 +1,10 @@
 import unittest
 
-from colomoto import minibn
 import mpbn
 
 class AttractorRechabilityTest_Automata18(unittest.TestCase):
     def setUp(self):
-        bn = minibn.BooleanNetwork.load("examples/automata18.bnet")
-        self.mbn = mpbn.load(bn)
+        self.mbn = mpbn.MPBooleanNetwork("examples/automata18.bnet")
         self.c0 = dict(a=0,b=0,c=0)
         self.c1 = dict(a=1,b=1,c=1)
         self.ci = dict(a=0,b=1,c=0)

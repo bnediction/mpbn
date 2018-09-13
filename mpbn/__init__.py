@@ -7,6 +7,7 @@ __version__ = "0.1a0"
 import os
 from colomoto import minibn
 
+from boolean import boolean
 import clingo
 
 __asplibdir__ = os.path.join(os.path.dirname(__file__), "..", "asplib")
@@ -38,6 +39,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         TODO
         """
+        assert not isinstance(bn, minibn.MultiValuedNetwork)
         if isinstance(bn, str):
             if "\n" in bn or not os.path.exists(bn):
                 bn = minibn.BooleanNetwork(bn)
@@ -55,17 +57,17 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         def clauses_of_dnf(f):
             if f == self.ba.FALSE:
                 return []
-            if isinstance(f, self.ba.OR):
+            if isinstance(f, boolean.OR):
                 return f.args
             else:
                 return [f]
         def literals_of_clause(c):
             def make_literal(l):
-                if isinstance(l, self.ba.NOT):
+                if isinstance(l, boolean.NOT):
                     return (l.args[0].obj, -1)
                 else:
                     return (l.obj, 1)
-            lits = c.args if isinstance(c, self.ba.AND) else [c]
+            lits = c.args if isinstance(c, boolean.AND) else [c]
             return map(make_literal, lits)
         facts = []
         for n, f in self.items():
