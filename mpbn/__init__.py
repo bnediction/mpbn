@@ -56,7 +56,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def asp_of_bn(self):
         def clauses_of_dnf(f):
             if f == self.ba.FALSE:
-                return []
+                return [False]
+            if f == self.ba.TRUE:
+                return [True]
             if isinstance(f, boolean.OR):
                 return f.args
             else:
@@ -74,8 +76,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             facts.append("node(\"{}\").".format(n))
             for cid, c in enumerate(clauses_of_dnf(f)):
                 facts.append("\n")
-                for m, v in literals_of_clause(c):
-                    facts.append(" clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
+                if isinstance(c, bool):
+                    facts.append(" constant(\"{}\",{}).".format(n, s2v(c)))
+                else:
+                    for m, v in literals_of_clause(c):
+                        facts.append(" clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
             facts.append("\n")
         return "".join(facts)
 
