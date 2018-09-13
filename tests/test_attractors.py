@@ -8,4 +8,4 @@ class AttractorsTest(unittest.TestCase):
         bn = minibn.BooleanNetwork.load("examples/automata18.bnet")
         mbn = mpbn.load(bn)
         attractors = list(mbn.attractors())
-        assert len(attractors) == 2
+        self.assertEqual(len(attractors), 2)
