@@ -84,13 +84,16 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             facts.append("\n")
         return "".join(facts)
 
-    def asp_of_cfg(self, e, t, c):
+    def asp_of_cfg(self, e, t, c, complete=False):
         """
         TODO
         """
         facts = ["timepoint({},{}).".format(e,t)]
         facts += [" mp_state({},{},\"{}\",{}).".format(e,t,n,s2v(s)) \
                     for (n,s) in c.items()]
+        if complete:
+            facts += [" 1 {{mp_state({},{},\"{}\",(-1;1))}} 1.".format(e,t,n) \
+                        for n in self if n not in c]
         return "".join(facts)
 
     def reachability(self, x, y):
@@ -104,7 +107,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         e = "default"
         t1 = 0
         t2 = 1
-        s.add("base", [], self.asp_of_cfg(e,t1,x))
+        s.add("base", [], self.asp_of_cfg(e,t1,x,complete=True))
         s.add("base", [], self.asp_of_cfg(e,t2,y))
         s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
         s.ground([("base",[])])
@@ -124,7 +127,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             t1 = "0"
             t2 = "final"
             s.load(aspf("mp_positivereach-np.asp"))
-            s.add("base", [], self.asp_of_cfg(e,t1,reachable_from))
+            s.add("base", [], self.asp_of_cfg(e,t1,reachable_from, complete=True))
             s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
             s.add("base", [], "mp_state({},{},N,V) :- attractor(N,V).".format(e,t2))
         s.ground([("base",[])])
