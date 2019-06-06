@@ -10,7 +10,7 @@ from colomoto import minibn
 from boolean import boolean
 import clingo
 
-__asplibdir__ = os.path.join(os.path.dirname(__file__), "..", "asplib")
+__asplibdir__ = os.path.join(os.path.dirname(__file__), "asplib")
 def aspf(basename):
     return os.path.join(__asplibdir__, basename)
 
@@ -39,7 +39,6 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         TODO
         """
-        assert not isinstance(bn, minibn.MultiValuedNetwork)
         if isinstance(bn, str):
             if "\n" in bn or not os.path.exists(bn):
                 bn = minibn.BooleanNetwork(bn)

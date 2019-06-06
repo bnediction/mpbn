@@ -1,0 +1,4 @@
+recursive-include mpbn/asplib *.asp
+prune examples
+prune tests
+exclude .gitignore

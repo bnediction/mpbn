@@ -23,7 +23,7 @@ for key in ["version"]:
 setup(name = NAME,
     author = "Loïc Paulevé",
     author_email = "loic.pauleve@ens-cachan.org",
-    url = "http://github.com/pauleve/mpbn",
+    url = "https://github.com/pauleve/mpbn",
     license = "CeCILL",
     classifiers=[
         "Intended Audience :: Science/Research",
@@ -42,8 +42,8 @@ setup(name = NAME,
             "mpbn=mpbn.cli:main",
         ],
     },
-    include_package_data = True,
-    packages = find_packages(exclude=["tests", "examples"]),
+    #include_package_data = True,
+    packages = [NAME],
     **META
 )
 
