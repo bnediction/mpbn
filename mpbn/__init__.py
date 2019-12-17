@@ -141,7 +141,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             s.add("base", [], "show_node({}).".format(";".join(["\"{}\"".format(n) \
                     for n in project])))
             s.add("base", [], "#show.")
-            s.add("base", [], "#show attractor(N,V) : attractor(N,V), show_node(N).")
+            s.add("base", [], "#show attractor(N,V) : attractor(N,V), not attractor(N,-V), show_node(N).")
+            s.add("base", [], "#show attractor(N,2) : attractor(N,V), attractor(N,-V), show_node(N).")
 
         s.ground([("base",[])])
         for sol in s.solve(yield_=True):
@@ -152,7 +153,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     continue
                 (n, v) = d.arguments
                 n = n.string
-                v = 1 if v.number == 1 else 0
+                v = v.number
+                if v == 2:
+                    v = star
+                else:
+                    v = 1 if v == 1 else 0
                 if n in attractor:
                     attractor[n] = star
                 else:
