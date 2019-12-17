@@ -4,4 +4,3 @@ timepoint(__a,final).
 mp_reach(__a,final,N,V) :- mp_eval(__a,final,N,V).
 
 attractor(N,V) :- mp_reach(__a,final,N,V).
-#show attractor/2.
