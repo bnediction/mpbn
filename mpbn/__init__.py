@@ -113,7 +113,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         res = s.solve()
         return res.satisfiable
 
-    def attractors(self, limit=0, star='*', reachable_from=None):
+    def attractors(self, limit=0, star='*', reachable_from=None, constraints={}):
         """
         TODO
         """
@@ -121,14 +121,19 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         s.load(aspf("mp_eval.asp"))
         s.load(aspf("mp_attractor.asp"))
         s.add("base", [], self.asp_of_bn())
+        e = "__a"
+        t2 = "final"
         if reachable_from:
-            e = "__a"
             t1 = "0"
-            t2 = "final"
             s.load(aspf("mp_positivereach-np.asp"))
             s.add("base", [], self.asp_of_cfg(e,t1,reachable_from, complete=True))
             s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
             s.add("base", [], "mp_state({},{},N,V) :- attractor(N,V).".format(e,t2))
+
+        for n, b in constraints.items():
+            s.add("base", [], "mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(b)))
+            s.add("base", [], ":- mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(1-b)))
+
         s.ground([("base",[])])
         for sol in s.solve(yield_=True):
             attractor = {}
