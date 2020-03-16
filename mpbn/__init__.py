@@ -6,6 +6,7 @@ __version__ = "0.1a0"
 
 import os
 from colomoto import minibn
+from colomoto_jupyter.io import ensure_localfile
 
 from boolean import boolean
 import clingo
@@ -162,4 +163,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 else:
                     attractor[n] = v
             yield attractor
+
+def load(filename, **opts):
+    filename = ensure_localfile(filename)
+    return MPBooleanNetwork(minibn.BooleanNetwork.load(filename), **opts)
 
