@@ -35,7 +35,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     """
     TODO
     """
-    def __init__(self, bn):
+    def __init__(self, bn, auto_dnf=True):
         """
         TODO
         """
@@ -50,7 +50,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         super(MPBooleanNetwork, self).__init__()
         self.ba = bn.ba
         for n, f in bn.items():
-            self[n] = self.ba.dnf(f).simplify()
+            self[n] = self.ba.dnf(f).simplify() if auto_dnf else f
 
     def asp_of_bn(self):
         def clauses_of_dnf(f):
