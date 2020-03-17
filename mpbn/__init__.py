@@ -114,8 +114,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         res = s.solve()
         return res.satisfiable
 
-    def attractors(self, limit=0, star='*', reachable_from=None,
-            constraints={}, project=None):
+    def attractors(self, limit=0, star='*', reachable_from=None, constraints={}):
         """
         TODO
         """
@@ -136,13 +135,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             s.add("base", [], "mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(b)))
             s.add("base", [], ":- mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(1-b)))
 
-        if project is None:
-            s.add("base", [], "#show attractor/2.")
-        else:
-            s.add("base", [], "show_node({}).".format(";".join(["\"{}\"".format(n) \
-                    for n in project])))
-            s.add("base", [], "#show.")
-            s.add("base", [], "#show attractor(N,V) : attractor(N,V), show_node(N).")
+        s.add("base", [], "#show attractor/2.")
 
         s.ground([("base",[])])
         for sol in s.solve(yield_=True):
