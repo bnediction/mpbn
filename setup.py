@@ -9,18 +9,10 @@ from setuptools import setup, find_packages
 from setuptools.command.install import install
 
 NAME = "mpbn"
-
-META = {}
-META_FILE = os.path.join(NAME, "__init__.py")
-with open(META_FILE) as f:
-    __data = f.read()
-for key in ["version"]:
-    match = re.search(r"^__{0}__ = ['\"]([^'\"]*)['\"]".format(key), __data, re.M)
-    if not match:
-        raise RuntimeError("Unable to find __{meta}__ string.".format(meta=key))
-    META[key] = match.group(1)
+VERSION = "9999"
 
 setup(name = NAME,
+    version = VERSION,
     author = "Loïc Paulevé",
     author_email = "loic.pauleve@ens-cachan.org",
     url = "https://github.com/pauleve/mpbn",
@@ -35,6 +27,7 @@ setup(name = NAME,
     description = "Simple implementation of most permissive semantics of Boolean networks",
 #    long_description=open('README.rst').read(),
     install_requires = [
+        "boolean.py",
         "colomoto_jupyter",
     ],
     entry_points = {
@@ -43,7 +36,6 @@ setup(name = NAME,
         ],
     },
     #include_package_data = True,
-    packages = [NAME],
-    **META
+    packages = [NAME]
 )
 

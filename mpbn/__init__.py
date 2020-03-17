@@ -1,8 +1,12 @@
+"""
+This module provides a simple implementation of Most Permissive Boolean Networks
+(MPBNs) for computing reachability properties, attractors, and reachable attractors.
 
-__version__ = "0.1a0"
+See https://arxiv.org/abs/1808.10240 for technical details.
 
-# TODO: check local-monotonicity
-# TODO: partial configurations
+It relies on clingo Answer-Set Programming solver
+(https://github.com/potassco/clingo).
+"""
 
 import os
 from colomoto import minibn
@@ -32,24 +36,43 @@ def clingo_exists():
 def s2v(s):
     return 1 if s > 0 else -1
 
-
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
-    TODO
+    Most Permissive Boolean Network
+
+    Extends ``colomoto.minibn.BooleanNetwork`` class by adding methods for
+    computing reachable and attractor properties.
+
+    Ensures that the Boolean functions are in disjunctive normal form (DNF).
+
+    *Warning*: the implementation assumes that the Boolean network is locally
+    monotonic, and does not verify it. If the Boolean network is not locally
+    monotonic, the results can be wrong.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True):
         """
-        TODO
+        Constructor for :py:class:`.MPBoooleanNetwork`.
+
+        :param bn: Boolean network to copy from
+        :type bn: :py:class:`colomoto.minibn.BooleanNetwork` or any type accepted by
+            :py:class:`colomoto.minibn.BooleanNetwork` constructor
+        :param bool autodnf: if ``False``, turns off automatic DNF
+            transformation of local functions
+
+        Examples:
+
+        >>> mbn = MPBooleanNetwork("network.bnet")
+        >>> bn = BooleanNetwork()
+        >>> bn["a"] = ".."; ...
+        >>> mbn = MPBooleanNetwork(bn)
         """
-        if not isinstance(bn, minibn.BooleanNetwork):
-            bn = minibn.BooleanNetwork(bn)
-        super(MPBooleanNetwork, self).__init__()
-        self.ba = bn.ba
         self.auto_dnf = auto_dnf
-        for n, f in bn.items():
-            self[n] = f
+        super(MPBooleanNetwork, self).__init__(bn)
 
     def formula_well_formed(self, f):
+        """
+        Returns ``True`` whenever the Boolean function ``f`` is in valid DNF form
+        """
         def is_lit(f):
             return isinstance(f, self.ba.Symbol) or \
                 isinstance(f, self.ba.NOT) \
@@ -75,6 +98,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         return False
 
     def __setitem__(self, a, f):
+        """
+        Assigns the Boolean function ``f`` to component ``a``.
+        Unless :py:attr:`.auto_dnf` is ``False``, ``f`` is converted into DNF
+        form first.
+        """
         if isinstance(f, str):
             f = self.ba.parse(f)
         f = self._autobool(f)
@@ -83,6 +111,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         return super().__setitem__(self._autokey(a), f)
 
     def asp_of_bn(self):
+        """
+        Returns Answer-Set Programming encoding of the Boolean network
+        """
         def clauses_of_dnf(f):
             if f == self.ba.FALSE:
                 return [False]
@@ -115,7 +146,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     def asp_of_cfg(self, e, t, c, complete=False):
         """
-        TODO
+        Returns Answer-Set Programming encoding of the configuration ``c``
         """
         facts = ["timepoint({},{}).".format(e,t)]
         facts += [" mp_state({},{},\"{}\",{}).".format(e,t,n,s2v(s)) \
@@ -127,7 +158,15 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     def reachability(self, x, y):
         """
-        TODO
+        Returns ``True`` whenever the configuration `y` is reachable from `x`
+        with the Most Permissive semantics.
+        Configurations can be partially defined.
+        In that case, returns ``True`` whenever there exists a configuration
+        matching with `y` which is reachable with at least one configuration
+        matching with `x`
+
+        :param dict[str,int] x: initial configuration
+        :param dict[str,int] y: target configuration
         """
         s = clingo_exists()
         s.load(aspf("mp_eval.asp"))
@@ -143,9 +182,21 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         res = s.solve()
         return res.satisfiable
 
-    def attractors(self, limit=0, star='*', reachable_from=None, constraints={}):
+    def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
         """
-        TODO
+        Iterator over attractors of the MPBN.
+        An attractor is an hypercube, represented by a dictionnary mapping every
+        component of the network to either ``0``, ``1``, or ``star``.
+
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        :param str star: value to use for components which are free in the
+            attractor
         """
         s = clingo_subsets(limit=limit)
         s.load(aspf("mp_eval.asp"))
@@ -187,6 +238,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             yield attractor
 
 def load(filename, **opts):
-    filename = ensure_localfile(filename)
-    return MPBooleanNetwork(minibn.BooleanNetwork.load(filename), **opts)
+    """
+    Create a :py:class:`.MPBooleanNetwork` object from ``filename`` in BoolNet
+    format, where ``filename can be a local file or an URL.
+    """
+    return MPBooleanNetwork.load(filename, **opts)
 
+__all__ = ["load", "MPBooleanNetwork"]
