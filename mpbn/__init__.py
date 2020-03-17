@@ -32,26 +32,55 @@ def clingo_exists():
 def s2v(s):
     return 1 if s > 0 else -1
 
+
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
     TODO
     """
-    def __init__(self, bn, auto_dnf=True):
+    def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True):
         """
         TODO
         """
-        if isinstance(bn, str):
-            if "\n" in bn or not os.path.exists(bn):
-                bn = minibn.BooleanNetwork(bn)
-            else:
-                bn = minibn.BooleanNetwork.load(bn)
-        elif isinstance(bn, dict):
+        if not isinstance(bn, minibn.BooleanNetwork):
             bn = minibn.BooleanNetwork(bn)
-        assert isinstance(bn, minibn.BooleanNetwork)
         super(MPBooleanNetwork, self).__init__()
         self.ba = bn.ba
+        self.auto_dnf = auto_dnf
         for n, f in bn.items():
-            self[n] = self.ba.dnf(f).simplify() if auto_dnf else f
+            self[n] = f
+
+    def formula_well_formed(self, f):
+        def is_lit(f):
+            return isinstance(f, self.ba.Symbol) or \
+                isinstance(f, self.ba.NOT) \
+                    and isinstance(f.args[0], self.ba.Symbol)
+        def is_clause(f):
+            if is_lit(f):
+                return True
+            if isinstance(f, self.ba.AND):
+                for g in f.args:
+                    if not is_lit(g):
+                        return False
+                return True
+            return False
+        if f is self.ba.TRUE or f is self.ba.FALSE:
+            return True
+        if is_clause(f):
+            return True
+        if isinstance(f, self.ba.OR):
+            for g in f.args:
+                if not is_clause(g):
+                    return False
+            return True
+        return False
+
+    def __setitem__(self, a, f):
+        if isinstance(f, str):
+            f = self.ba.parse(f)
+        f = self._autobool(f)
+        if self.auto_dnf and not self.formula_well_formed(f):
+            f = self.ba.dnf(f).simplify()
+        return super().__setitem__(self._autokey(a), f)
 
     def asp_of_bn(self):
         def clauses_of_dnf(f):
