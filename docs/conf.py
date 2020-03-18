@@ -24,6 +24,8 @@ author = 'Loïc Paulevé'
 autodoc_mock_imports = ["clingo"]
 autoclass_content = 'both'
 
+master_doc = 'index'
+
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
