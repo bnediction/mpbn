@@ -15,4 +15,3 @@ class RechabilityTest_Automata18(unittest.TestCase):
         self.assertTrue(self.mbn.reachability(self.c0, self.ci))
     def test_cicd(self):
         self.assertFalse(self.mbn.reachability(self.ci, self.cd))
-

@@ -13,5 +13,3 @@ class AttractorRechabilityTest_Automata18(unittest.TestCase):
         self.assertEqual(len(list(self.mbn.attractors(reachable_from=self.c0))), 2)
     def test_ci(self):
         self.assertEqual(len(list(self.mbn.attractors(reachable_from=self.ci))), 1)
-
-

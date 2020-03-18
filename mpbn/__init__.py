@@ -10,12 +10,13 @@ It relies on clingo Answer-Set Programming solver
 
 import os
 from colomoto import minibn
-from colomoto_jupyter.io import ensure_localfile
 
 from boolean import boolean
 import clingo
 
 __asplibdir__ = os.path.join(os.path.dirname(__file__), "asplib")
+
+
 def aspf(basename):
     return os.path.join(__asplibdir__, basename)
 
@@ -75,8 +76,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         def is_lit(f):
             return isinstance(f, self.ba.Symbol) or \
-                isinstance(f, self.ba.NOT) \
+                    isinstance(f, self.ba.NOT) \
                     and isinstance(f.args[0], self.ba.Symbol)
+
         def is_clause(f):
             if is_lit(f):
                 return True
@@ -86,6 +88,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                         return False
                 return True
             return False
+
         if f is self.ba.TRUE or f is self.ba.FALSE:
             return True
         if is_clause(f):
@@ -123,6 +126,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 return f.args
             else:
                 return [f]
+
         def literals_of_clause(c):
             def make_literal(l):
                 if isinstance(l, boolean.NOT):
@@ -131,6 +135,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     return (l.obj, 1)
             lits = c.args if isinstance(c, boolean.AND) else [c]
             return map(make_literal, lits)
+
         facts = []
         for n, f in self.items():
             facts.append("node(\"{}\").".format(n))
@@ -149,10 +154,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         Returns Answer-Set Programming encoding of the configuration ``c``
         """
         facts = ["timepoint({},{}).".format(e,t)]
-        facts += [" mp_state({},{},\"{}\",{}).".format(e,t,n,s2v(s)) \
+        facts += [" mp_state({},{},\"{}\",{}).".format(e,t,n,s2v(s))
                     for (n,s) in c.items()]
         if complete:
-            facts += [" 1 {{mp_state({},{},\"{}\",(-1;1))}} 1.".format(e,t,n) \
+            facts += [" 1 {{mp_state({},{},\"{}\",(-1;1))}} 1.".format(e,t,n)
                         for n in self if n not in c]
         return "".join(facts)
 
@@ -237,11 +242,13 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     attractor[n] = v
             yield attractor
 
+
 def load(filename, **opts):
     """
     Create a :py:class:`.MPBooleanNetwork` object from ``filename`` in BoolNet
     format, where ``filename can be a local file or an URL.
     """
     return MPBooleanNetwork.load(filename, **opts)
+
 
 __all__ = ["load", "MPBooleanNetwork"]

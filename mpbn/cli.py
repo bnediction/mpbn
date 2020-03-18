@@ -15,5 +15,3 @@ def main():
             print(attractor)
     elif args.method == "bn2asp":
         print(mbn.asp_of_bn())
-
-
