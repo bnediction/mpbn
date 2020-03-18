@@ -46,9 +46,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     Ensures that the Boolean functions are in disjunctive normal form (DNF).
 
-    *Warning*: the implementation assumes that the Boolean network is locally
-    monotonic, and does not verify it. If the Boolean network is not locally
-    monotonic, the results can be wrong.
+    .. warning:: The implementation assumes that the Boolean network is locally
+       monotonic, and does not verify it. If the Boolean network is not locally
+       monotonic, the results can be wrong.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True):
         """
@@ -57,7 +57,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         :param bn: Boolean network to copy from
         :type bn: :py:class:`colomoto.minibn.BooleanNetwork` or any type accepted by
             :py:class:`colomoto.minibn.BooleanNetwork` constructor
-        :param bool autodnf: if ``False``, turns off automatic DNF
+        :param bool auto_dnf: if ``False``, turns off automatic DNF
             transformation of local functions
 
         Examples:
@@ -71,9 +71,6 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         super(MPBooleanNetwork, self).__init__(bn)
 
     def formula_well_formed(self, f):
-        """
-        Returns ``True`` whenever the Boolean function ``f`` is in valid DNF form
-        """
         def is_lit(f):
             return isinstance(f, self.ba.Symbol) or \
                     isinstance(f, self.ba.NOT) \
@@ -114,9 +111,6 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         return super().__setitem__(self._autokey(a), f)
 
     def asp_of_bn(self):
-        """
-        Returns Answer-Set Programming encoding of the Boolean network
-        """
         def clauses_of_dnf(f):
             if f == self.ba.FALSE:
                 return [False]
@@ -150,9 +144,6 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         return "".join(facts)
 
     def asp_of_cfg(self, e, t, c, complete=False):
-        """
-        Returns Answer-Set Programming encoding of the configuration ``c``
-        """
         facts = ["timepoint({},{}).".format(e,t)]
         facts += [" mp_state({},{},\"{}\",{}).".format(e,t,n,s2v(s))
                     for (n,s) in c.items()]
@@ -246,7 +237,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 def load(filename, **opts):
     """
     Create a :py:class:`.MPBooleanNetwork` object from ``filename`` in BoolNet
-    format, where ``filename can be a local file or an URL.
+    format; ``filename`` can be a local file or an URL.
     """
     return MPBooleanNetwork.load(filename, **opts)
 
