@@ -1,7 +1,7 @@
 """
 This module provides a simple implementation of Most Permissive Boolean Networks
 (MPBNs) for computing reachability properties, attractors, and reachable
-attractors.
+attractors in locally-monotonic Boolean networks.
 See https://arxiv.org/abs/1808.10240 for technical details.
 
 It relies on clingo Answer-Set Programming solver
@@ -59,9 +59,14 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     Most Permissive Boolean Network
 
     Extends ``colomoto.minibn.BooleanNetwork`` class by adding methods for
-    computing reachable and attractor properties.
+    computing reachable and attractor properties with the Most Permissive
+    semantics.
+    It requires that the Boolean network is *locally monotonic*.
 
-    Ensures that the Boolean functions are in disjunctive normal form (DNF).
+    Ensures that the Boolean functions are monotonic and in disjunctive normal
+    form (DNF).
+    The local-monotonic checking requires that a literal never appears
+    with both signs in a same Boolean function.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True):
         """
@@ -84,10 +89,17 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         super(MPBooleanNetwork, self).__init__(bn)
 
     def formula_well_formed(self, f):
+        pos_lits = set()
+        neg_lits = set()
         def is_lit(f):
-            return isinstance(f, self.ba.Symbol) or \
-                    isinstance(f, self.ba.NOT) \
-                    and isinstance(f.args[0], self.ba.Symbol)
+            if isinstance(f, self.ba.Symbol):
+                pos_lits.add(f.obj)
+                return True
+            if isinstance(f, self.ba.NOT) \
+                    and isinstance(f.args[0], self.ba.Symbol):
+                neg_lits.add(f.args[0].obj)
+                return True
+            return False
 
         def is_clause(f):
             if is_lit(f):
@@ -99,14 +111,21 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 return True
             return False
 
+        def assert_monotonicity():
+            both = pos_lits.intersection(neg_lits)
+            assert not both, \
+                f"expression '{f}' contains literals with both signs ({both}). Try .simplify()?"
+
         if f is self.ba.TRUE or f is self.ba.FALSE:
             return True
         if is_clause(f):
+            assert_monotonicity()
             return True
         if isinstance(f, self.ba.OR):
             for g in f.args:
                 if not is_clause(g):
                     return False
+            assert_monotonicity()
             return True
         return False
 
