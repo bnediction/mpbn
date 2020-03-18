@@ -116,7 +116,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             assert not both, \
                 f"expression '{f}' contains literals with both signs ({both}). Try .simplify()?"
 
-        if f is self.ba.TRUE or f is self.ba.FALSE:
+        if f in [self.ba.TRUE, self.ba.FALSE]:
             return True
         if is_clause(f):
             assert_monotonicity()
