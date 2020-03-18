@@ -1,11 +1,28 @@
 """
 This module provides a simple implementation of Most Permissive Boolean Networks
-(MPBNs) for computing reachability properties, attractors, and reachable attractors.
-
+(MPBNs) for computing reachability properties, attractors, and reachable
+attractors.
 See https://arxiv.org/abs/1808.10240 for technical details.
 
 It relies on clingo Answer-Set Programming solver
 (https://github.com/potassco/clingo).
+
+Examples are available at https://nbviewer.jupyter.org/github/pauleve/mpbn/tree/master/examples/
+
+Quick example:
+
+>>> mbn = mpbn.MPBooleanNetwork({
+        "a": "!b",
+        "b": "!a",
+        "c": "!a & b"})
+>>> list(mbn.attractors())
+[{'a': 0, 'b': 1, 'c': 1}, {'a': 1, 'b': 0, 'c': 0}]
+>>> mbn.reachability({'a': 0, 'b': 1, 'c': 1}, {'a': 1, 'b': 0, 'c': 0})
+False
+>>> mbn.reachability({'a': 0, 'b': 0, 'c': 0}, {'a': 1, 'b': 1, 'c': 1})
+True
+>>> list(mbn.attractors(reachable_from={'a': 0, 'b': 1, 'c': 0}))
+[{'a': 0, 'b': 1, 'c': 1}]
 """
 
 import os
@@ -45,10 +62,6 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     computing reachable and attractor properties.
 
     Ensures that the Boolean functions are in disjunctive normal form (DNF).
-
-    .. warning:: The implementation assumes that the Boolean network is locally
-       monotonic, and does not verify it. If the Boolean network is not locally
-       monotonic, the results can be wrong.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True):
         """
