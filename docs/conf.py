@@ -21,6 +21,7 @@ project = 'mpbn'
 copyright = '2020, Loïc Paulevé'
 author = 'Loïc Paulevé'
 
+autodoc_mock_imports = ["clingo"]
 autoclass_content = 'both'
 
 # -- General configuration ---------------------------------------------------
