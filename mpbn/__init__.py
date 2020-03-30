@@ -2,7 +2,7 @@
 This module provides a simple implementation of Most Permissive Boolean Networks
 (MPBNs) for computing reachability properties, attractors, and reachable
 attractors in locally-monotonic Boolean networks.
-See https://arxiv.org/abs/1808.10240 for technical details.
+See http://dx.doi.org/10.1101/2020.03.22.998377 and https://arxiv.org/abs/1808.10240 for technical details.
 
 It relies on clingo Answer-Set Programming solver
 (https://github.com/potassco/clingo).
