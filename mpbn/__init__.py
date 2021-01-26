@@ -309,7 +309,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     def dynamics(self, update_mode="mp", **kwargs):
         """
-        Returns a `networkx.DiGraph` object representing the transitions between
+        Returns a :py:class:`networkx.DiGraph` object representing the transitions between
         the configurations using the Most Permissive semantics by default.
         See :py:meth:`colomoto.minibn.BooleanNetwork.dynamics`.
         """
