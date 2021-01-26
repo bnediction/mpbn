@@ -24,7 +24,7 @@ setup(name=NAME,
     long_description_content_type="text/markdown",
     install_requires=[
         "boolean.py",
-        "colomoto_jupyter",
+        "colomoto_jupyter>=0.8.0",
     ],
     entry_points={
         "console_scripts": [

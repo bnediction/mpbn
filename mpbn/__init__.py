@@ -311,7 +311,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         Returns a `networkx.DiGraph` object representing the transitions between
         the configurations using the Most Permissive semantics by default.
-        See :py:method:`colomoto.minibn.BooleanNetwork.dynamics`.
+        See :py:meth:`colomoto.minibn.BooleanNetwork.dynamics`.
         """
         if update_mode in ["mp", "most-permissive"]:
             update_mode = MostPermissiveUpdateModeDynamics
