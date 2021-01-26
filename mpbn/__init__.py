@@ -51,8 +51,18 @@ def clingo_exists():
     s.configuration.solve.models = 1
     return s
 
+def clingo_enum(project=True):
+    s = clingo.Control()
+    if project:
+        s.configuration.solve.project = 1
+    s.configuration.solve.models = 0
+    return s
+
 def s2v(s):
     return 1 if s > 0 else -1
+def v2s(v):
+    return 1 if v > 0 else 0
+
 
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
@@ -265,6 +275,48 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     attractor[n] = v
             yield attractor
 
+    def reachable_from(self, x, reversed=False):
+        """
+        Returns an iterator over the configurations reachable from ``x`` with the
+        Most Permissive semantics.
+        Configuration ``x`` can be partially defined: in that case a configuration
+        is yielded whnever it is reachable from at least one configuration
+        matching with ``x``.
+
+        Whenever ``reversed`` is ``True``, yields over the configurations that can
+        reach `x` instead.
+        """
+        s = clingo_enum()
+        s.load(aspf("mp_eval.asp"))
+        s.load(aspf("mp_positivereach-np.asp"))
+        s.add("base", [], self.asp_of_bn())
+        e = "default"
+        t1 = 0
+        t2 = 1
+        s.add("base", [], self.asp_of_cfg(e,t1,x if not reversed else {}))
+        s.add("base", [], self.asp_of_cfg(e,t2,{} if not reversed else x))
+        s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
+        t = t2 if not reversed else t1
+        s.add("base", [], "#show." \
+            f"#show mp_state(E,T,N,V) : mp_state(E,T,N,V), E={e}, T={t}.")
+        s.ground([("base",[])])
+
+        def cfg_of_asp(atoms):
+            return {a.arguments[2].string: v2s(a.arguments[3].number) for a in atoms}
+        for sol in s.solve(yield_=True):
+            data = sol.symbols(shown=True)
+            yield cfg_of_asp(data)
+
+    def dynamics(self, update_mode="mp", **kwargs):
+        """
+        Returns a `networkx.DiGraph` object representing the transitions between
+        the configurations using the Most Permissive semantics by default.
+        See :py:method:`colomoto.minibn.BooleanNetwork.dynamics`.
+        """
+        if update_mode in ["mp", "most-permissive"]:
+            update_mode = MostPermissiveUpdateModeDynamics
+        return super().dynamics(update_mode=update_mode, **kwargs)
+
 
 def load(filename, **opts):
     """
@@ -273,5 +325,14 @@ def load(filename, **opts):
     """
     return MPBooleanNetwork.load(filename, **opts)
 
+class MostPermissiveUpdateModeDynamics(minibn.UpdateModeDynamics):
+    def __init__(self, model):
+        if not isinstance(model, MPBooleanNetwork)\
+                and isinstance(model, minibn.BooleanNetwork):
+            model = MPBooleanNetwork(model)
+        super().__init__(model)
 
-__all__ = ["load", "MPBooleanNetwork"]
+    def __call__(self, x):
+        return self.model.reachable_from(x)
+
+__all__ = ["load", "MPBooleanNetwork", "MostPermissiveUpdateModeDynamics"]
