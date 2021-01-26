@@ -257,7 +257,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
         s.ground([("base",[])])
         for sol in s.solve(yield_=True):
-            attractor = {}
+            attractor = {n: None for n in self}
             data = sol.symbols(shown=True)
             for d in data:
                 if d.name != "attractor":
@@ -269,7 +269,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     v = star
                 else:
                     v = 1 if v == 1 else 0
-                if n in attractor:
+                if attractor[n] is not None:
                     attractor[n] = star
                 else:
                     attractor[n] = v
