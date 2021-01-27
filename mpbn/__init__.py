@@ -314,7 +314,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         See :py:meth:`colomoto.minibn.BooleanNetwork.dynamics`.
         """
         if update_mode in ["mp", "most-permissive"]:
-            update_mode = MostPermissiveUpdateModeDynamics
+            update_mode = MostPermissiveDynamics
         return super().dynamics(update_mode=update_mode, **kwargs)
 
 
@@ -325,7 +325,7 @@ def load(filename, **opts):
     """
     return MPBooleanNetwork.load(filename, **opts)
 
-class MostPermissiveUpdateModeDynamics(minibn.UpdateModeDynamics):
+class MostPermissiveDynamics(minibn.UpdateModeDynamics):
     def __init__(self, model):
         if not isinstance(model, MPBooleanNetwork)\
                 and isinstance(model, minibn.BooleanNetwork):
@@ -335,4 +335,4 @@ class MostPermissiveUpdateModeDynamics(minibn.UpdateModeDynamics):
     def __call__(self, x):
         return self.model.reachable_from(x)
 
-__all__ = ["load", "MPBooleanNetwork", "MostPermissiveUpdateModeDynamics"]
+__all__ = ["load", "MPBooleanNetwork", "MostPermissiveDynamics"]
