@@ -33,12 +33,13 @@ import clingo
 
 __asplibdir__ = os.path.join(os.path.dirname(__file__), "asplib")
 
+clingo_options = ["-W", "no-atom-undefined"]
 
 def aspf(basename):
     return os.path.join(__asplibdir__, basename)
 
 def clingo_subsets(limit=0):
-    s = clingo.Control()
+    s = clingo.Control(clingo_options)
     s.configuration.solve.models = limit
     s.configuration.solve.project = 1
     s.configuration.solve.enum_mode = "domRec"
@@ -47,12 +48,12 @@ def clingo_subsets(limit=0):
     return s
 
 def clingo_exists():
-    s = clingo.Control()
+    s = clingo.Control(clingo_options)
     s.configuration.solve.models = 1
     return s
 
 def clingo_enum(project=True):
-    s = clingo.Control()
+    s = clingo.Control(clingo_options)
     if project:
         s.configuration.solve.project = 1
     s.configuration.solve.models = 0
