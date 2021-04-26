@@ -31,7 +31,7 @@ from colomoto import minibn
 from boolean import boolean
 import clingo
 
-__asplibdir__ = os.path.join(os.path.dirname(__file__), "asplib")
+__asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
 clingo_options = ["-W", "no-atom-undefined"]
 
