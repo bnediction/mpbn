@@ -276,6 +276,12 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     attractor[n] = v
             yield attractor
 
+    def has_cyclic_attractor(self):
+        for a in self.attractors():
+            if "*" in a.values():
+                return True
+        return False
+
     def reachable_from(self, x, reversed=False):
         """
         Returns an iterator over the configurations reachable from ``x`` with the
