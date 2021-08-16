@@ -11,9 +11,6 @@ It is built on the `minibn` module from [colomoto-jupyter](https://github.com/co
 
 ### Using pip
 
-#### Extra requirements
-* [clingo](https://github.com/potassco/clingo) and its Python module
-
 ```
 pip install mpbn
 ```
