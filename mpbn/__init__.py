@@ -333,11 +333,11 @@ def load(filename, **opts):
     return MPBooleanNetwork.load(filename, **opts)
 
 class MostPermissiveDynamics(minibn.UpdateModeDynamics):
-    def __init__(self, model):
+    def __init__(self, model, **opts):
         if not isinstance(model, MPBooleanNetwork)\
                 and isinstance(model, minibn.BooleanNetwork):
             model = MPBooleanNetwork(model)
-        super().__init__(model)
+        super().__init__(model, **opts)
 
     def __call__(self, x):
         return self.model.reachable_from(x)
