@@ -52,11 +52,11 @@ def clingo_exists():
     s.configuration.solve.models = 1
     return s
 
-def clingo_enum(project=True):
+def clingo_enum(project=True, limit=0):
     s = clingo.Control(clingo_options)
     if project:
         s.configuration.solve.project = 1
-    s.configuration.solve.models = 0
+    s.configuration.solve.models = limit
     return s
 
 def s2v(s):
@@ -220,6 +220,47 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         s.ground([("base",[])])
         res = s.solve()
         return res.satisfiable
+
+    def fixedpoints(self, reachable_from=None, constraints={}, limit=0):
+        """
+        Iterator over fixed points of the MPBN (i.e., of f)
+
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        """
+        s = clingo_enum()
+        s.add("base", [], self.asp_of_bn())
+        e = "fp"
+        t2 = "fp"
+        s.add("base", [], self.asp_of_cfg(e, t2, constraints))
+        s.load(aspf("mp_eval.asp"))
+        s.add("base", [], f"mp_reach({e},{t2},N,V) :- mp_state({e},{t2},N,V).")
+        s.add("base", [], f":- mp_state({e},{t2},N,V), mp_eval({e},{t2},N,-V).")
+        if reachable_from:
+            t1 = "0"
+            s.load(aspf("mp_positivereach-np.asp"))
+            s.add("base", [], self.asp_of_cfg(e,t1,reachable_from))
+            s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
+        s.add("base", [], f"#show fixpoint(N,V) : mp_state({e},{t2},N,V).")
+
+        s.ground([("base",[])])
+        for sol in s.solve(yield_=True):
+            x = {n: None for n in self}
+            data = sol.symbols(shown=True)
+            for d in data:
+                if d.name != "fixpoint":
+                    continue
+                (n, v) = d.arguments
+                n = n.string
+                v = v.number
+                v = 1 if v == 1 else 0
+                x[n] = v
+            yield x
 
     def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
         """
