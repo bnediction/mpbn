@@ -33,7 +33,7 @@ import clingo
 
 __asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
-clingo_options = ["-W", "no-atom-undefined"]
+clingo_options = ["-W", "no-atom-undefined", "--single-shot"]
 
 def aspf(basename):
     return os.path.join(__asplibdir__, basename)
