@@ -13,7 +13,7 @@ def main():
     if args.method == "attractors":
         for attractor in mbn.attractors():
             print(attractor)
-    elif args.method == "fixedpointss":
+    elif args.method == "fixedpoints":
         for attractor in mbn.fixedpoints():
             print(attractor)
     elif args.method == "bn2asp":

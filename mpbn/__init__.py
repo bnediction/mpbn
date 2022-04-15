@@ -248,7 +248,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             s.load(aspf("mp_positivereach-np.asp"))
             s.add("base", [], self.asp_of_cfg(e,t1,reachable_from))
             s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
-        s.add("base", [], f"#show fixpoint(N,V) : mp_state({e},{t2},N,V).")
+        s.add("base", [], f"#show. #show fixpoint(N,V) : mp_state({e},{t2},N,V).")
 
         s.ground([("base",[])])
         for sol in s.solve(yield_=True):
