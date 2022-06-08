@@ -151,9 +151,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         if isinstance(f, str):
             f = self.ba.parse(f)
         f = self._autobool(f)
-        if self.auto_dnf and not self.formula_well_formed(f):
+        if self.auto_dnf:
             f = self.ba.dnf(f).simplify()
-            assert self.formula_well_formed(f)
+            f = minibn.simplify_dnf(self.ba, f)
+        assert self.formula_well_formed(f)
         return super().__setitem__(self._autokey(a), f)
 
     def asp_of_bn(self):
