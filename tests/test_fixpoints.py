@@ -20,3 +20,5 @@ class TestFixedpoints(unittest.TestCase):
         self.assertEqual(fps, self.all_fps)
     def test_reachable(self):
         self.assertEqual(len(list(self.mbn.fixedpoints(reachable_from=self.ci))), 1)
+    def test_limit(self):
+        self.assertEqual(len(list(self.mbn.fixedpoints(limit=1))), 1)

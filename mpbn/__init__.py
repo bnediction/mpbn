@@ -236,7 +236,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             the given constraints.
         :param int limit: maximum number of solutions, ``0`` for unlimited.
         """
-        s = clingo_enum()
+        s = clingo_enum(limit=limit)
         s.add("base", [], self.asp_of_bn())
         e = "fp"
         t2 = "fp"
