@@ -1,8 +1,10 @@
 
 from itertools import combinations, chain
+from multiprocessing import SimpleQueue, Process, current_process, cpu_count
+import os
 
 import numpy as np
-from numpy.random import uniform, choice
+from numpy.random import uniform, choice, seed
 from scipy.special import binom
 
 from mpbn import MPBooleanNetwork
@@ -204,7 +206,7 @@ def convert_attractor(A):
     x = {i:v for i,v in A.items() if v != '*'}
     return x, H
 
-def estimate_reachable_attractor_probabilities(f, x, A, nb_sims, depth, W):
+def estimate_reachable_attractors_probabilities(f, x, A, nb_sims, depth, W):
     f = MPBNSim(f)
     mem = MPSimMemory(len(f), len(f))
     A = list(enumerate(map(convert_attractor, A)))
@@ -215,6 +217,52 @@ def estimate_reachable_attractor_probabilities(f, x, A, nb_sims, depth, W):
     for ia, _ in A:
         C[ia] = (C[ia]*100) / nb_sims
     return C
+
+def parallel_estimate_reachable_attractors_probabilities(f, x, A, nb_sims, depth, W,
+            nb_jobs=0):
+
+    if nb_jobs == 0:
+        nb_jobs = cpu_count()
+
+    f = MPBNSim(f)
+    A = list(enumerate(map(convert_attractor, A)))
+
+    q = SimpleQueue()
+    r = SimpleQueue()
+
+    def worker(nb_sim):
+        seed(int.from_bytes(os.urandom(4)))
+        mem = MPSimMemory(len(f), len(f))
+        C = {ia: 0 for (ia,_) in A}
+        for _ in range(nb_sim):
+            ia = sample_reachable_attractor(f, mem, x, A, depth, W)
+            C[ia] += 1
+            q.put(ia)
+        r.put(C)
+
+    # create nb_jobs processes
+    w_nb_sims = [nb_sims // nb_jobs] * nb_jobs
+    for i in range(nb_sims % nb_jobs):
+        w_nb_sims[i] += 1
+    procs = [Process(target=worker, args=(n,)) for n in w_nb_sims]
+
+    for p in procs:
+        p.start()
+    for _ in tqdm(range(nb_sims)):
+        q.get()
+    for p in procs:
+        p.join()
+
+    # combine results
+    C = {ia: 0 for (ia,_) in A}
+    for _ in range(nb_jobs):
+        Cr = r.get()
+        for (ia, c) in Cr.items():
+            C[ia] += c
+    for ia, _ in A:
+        C[ia] = (C[ia]*100) / nb_sims
+    return C
+
 
 
 ###

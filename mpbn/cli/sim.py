@@ -13,6 +13,8 @@ def main():
                             help="Save simulation results within given diretory")
     cmdline.add_argument("--repeat", type=int, default=1,
                             help="Repeat simulations")
+    cmdline.add_argument("--nb-jobs", type=int, default=1,
+                            help="Parallelize simulations with number of jobs (0 for all available CPUs)")
     cmdline.add_argument("json_file",
                             help="Simulation setup")
     args = cmdline.parse_args()
@@ -114,10 +116,17 @@ def main():
                 depth_args = exp.get("depth_args", {})
                 print(f"- {depth.__name__}{depth_args}\t{rates.__name__}{rates_args}")
                 def do():
-                    handle_result(exp, mpbn_sim.estimate_reachable_attractor_probabilities(f, x0, A,
-                            nb_sims,
-                            depth(f, **depth_args),
-                            rates(f, **rates_args)))
+                    margs = (f, x0, A, nb_sims,
+                                depth(f, **depth_args),
+                                rates(f, **rates_args))
+                    kwargs = {}
+                    meth = mpbn_sim.estimate_reachable_attractors_probabilities
+                    if args.nb_jobs != 1:
+                        meth = mpbn_sim.parallel_estimate_reachable_attractors_probabilities
+                        kwargs["nb_jobs"] = args.nb_jobs
+                    res = meth(*margs, **kwargs)
+                    handle_result(exp, res)
+
                 if args.profile:
                     import cProfile
                     with cProfile.Profile() as pr:
