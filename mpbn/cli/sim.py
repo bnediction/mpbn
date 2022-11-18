@@ -7,10 +7,14 @@ import mpbn.simulation as mpbn_sim
 
 def main():
     cmdline = ArgumentParser()
-    cmdline.add_argument("--profile", action="store_true", default=False)
-    cmdline.add_argument("--save", action="store_true", default=False)
-    cmdline.add_argument("--repeat", type=int, default=1)
-    cmdline.add_argument("json_file")
+    cmdline.add_argument("--profile", action="store_true", default=False,
+                            help="Perform code profiling")
+    cmdline.add_argument("--save-in", type=str, dest="save",
+                            help="Save simulation results within given diretory")
+    cmdline.add_argument("--repeat", type=int, default=1,
+                            help="Repeat simulations")
+    cmdline.add_argument("json_file",
+                            help="Simulation setup")
     args = cmdline.parse_args()
 
 
