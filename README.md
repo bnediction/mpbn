@@ -25,7 +25,7 @@ conda install -c colomoto -c potassco mpbn
 Documentation is available at https://mpbn.readthedocs.io.
 
 Example notebooks:
-* https://nbviewer.jupyter.org/github/pauleve/mpbn/tree/master/examples/
+* https://nbviewer.jupyter.org/github/bnediction/mpbn/tree/master/examples/
 * http://doi.org/10.5281/zenodo.3719097
 
 

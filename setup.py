@@ -9,8 +9,8 @@ VERSION = "9999"
 setup(name=NAME,
     version=VERSION,
     author="Loïc Paulevé",
-    author_email="loic.pauleve@ens-cachan.org",
-    url="https://github.com/pauleve/mpbn",
+    author_email="loic.pauleve@labri.fr",
+    url="https://github.com/bnediction/mpbn",
     license="CeCILL",
     classifiers=[
         "Intended Audience :: Science/Research",
