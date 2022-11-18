@@ -1,0 +1,36 @@
+{
+    "bnet_file": "examples/bladder.bnet",
+    "init_active": ["EGFR_stimulus", "FGFR3_stimulus", "GrowthInhibitors"],
+    "label_attractor": [
+        ["lambda a: a['Apoptosis_b1'] == 1", "Ap"],
+        ["lambda a: a['Growth_Arrest'] == 1", "GA"],
+        ["lambda a: a['Proliferation'] == 1", "Pr"],
+        "Un"
+    ],
+    "nb_sims": 10000,
+    "mutants": {
+        "PI3K E1": {
+            "PI3K": "1"
+        }
+    },
+    "experiments": [
+        {"name": "mpsim",
+            "rates": "fully_asynchronous",
+            "depth": "constant_unitary"},
+        {"name": "mpsim",
+            "rates": "uniform",
+            "depth": "constant_unitary"},
+        {"name": "mpsim",
+            "rates": "uniform",
+            "depth": "constant_maximum"},
+        {"name": "mpsim",
+            "rates": "uniform",
+            "depth": "nexponential"},
+        {"name": "mpsim",
+            "rates": "nexponential",
+            "depth": "constant_maximum"},
+        {"name": "mpsim",
+            "rates": "nexponential",
+            "depth": "nexponential"}
+    ]
+}

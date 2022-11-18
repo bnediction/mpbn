@@ -1,0 +1,19 @@
+{
+    "f": {
+        "a": "1",
+        "b": "a",
+        "c": "(!a & b)|c"
+    },
+    "nb_sims": 10000,
+    "experiments": [
+        {"name": "mpsim", "rates": "fully_asynchronous", "depth": "constant_unitary"},
+        {"name": "mpsim", "rates": "uniform", "depth": "constant_maximum"},
+        {"name": "mpsim", "rates": "nexponential", "depth": "constant_maximum"},
+        {"name": "mpsim", "rates": "fully_asynchronous", "depth": "constant_maximum"},
+        {"name": "mpsim", "rates": "uniform", "depth": "nexponential"},
+        {"name": "mpsim", "rates": "reciprocal", "depth": "nexponential"},
+        {"name": "mpsim", "rates": "nexponential", "depth": "nexponential"},
+        {"name": "mpsim", "rates": "fully_asynchronous", "depth": "nexponential"}
+    ]
+}
+

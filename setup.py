@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 NAME = "mpbn"
 VERSION = "9999"
@@ -26,12 +26,16 @@ setup(name=NAME,
         "boolean.py",
         "clingo",
         "colomoto_jupyter>=0.8.0",
+        "numpy",
+        "scipy",
+        "tqdm"
     ],
     entry_points={
         "console_scripts": [
             "mpbn=mpbn.cli:main",
+            "mpbn-sim=mpbn.cli.sim:main",
         ],
     },
-    packages=[NAME],
+    packages = find_packages(),
     package_data={'mpbn': ['asplib/*.asp']}
 )
