@@ -1,23 +1,17 @@
-name: Packaging
+name: Release
 
 on:
   release:
     types: [created]
 
 jobs:
-  publish:
+  pypi-publish:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - run: sed -i "s:9999:${VERSION//*v/}:" setup.py conda/meta.yaml
       env:
           VERSION: ${{ github.ref }}
-    - name: Conda publish
-      uses: docker://colomoto/conda-builder:latest
-      with:
-        subdir: conda
-        anaconda_user: colomoto
-        anaconda_token: ${{ secrets.ANACONDA_TOKEN }}
     - uses: actions/setup-python@v1
     - name: Install dependencies
       run: |
@@ -30,3 +24,22 @@ jobs:
       run: |
         python setup.py sdist bdist_wheel
         twine upload dist/*
+  conda-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: sed -i "s:9999:${VERSION//*v/}:" setup.py conda/meta.yaml
+      env:
+          VERSION: ${{ github.ref }}
+    - uses: s-weigand/setup-conda@v1
+    - name: prepare
+      run: |
+        conda install -y anaconda-client conda-build conda-verify
+        conda config --set channel_priority strict
+        conda config --set anaconda_upload yes
+    - name: build
+      run: |
+        cd conda
+        conda build --user colomoto --token $ANACONDA_TOKEN -c defaults -c conda-forge -c potassco -c colomoto .
+      env:
+        ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
