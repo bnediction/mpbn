@@ -20,13 +20,30 @@ pip install mpbn
 conda install -c colomoto -c potassco mpbn
 ```
 
-## Documentation
+## Usage
+
+### Command line
+
+- Enumeration of fixed points and attractors:
+```
+mpbn -h
+```
+
+- Simulation:
+```
+mpbn-sim -h
+```
+
+### Python interface
 
 Documentation is available at https://mpbn.readthedocs.io.
 
 Example notebooks:
-* https://nbviewer.jupyter.org/github/bnediction/mpbn/tree/master/examples/
+* https://nbviewer.org/github/bnediction/mpbn/tree/master/examples/
 * http://doi.org/10.5281/zenodo.3719097
+
+For the simulation:
+* https://nbviewer.org/github/bnediction/mpbn/blob/master/examples/Simulation.ipynb
 
 
 [1]: https://arxiv.org/abs/1808.10240
