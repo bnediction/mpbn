@@ -66,6 +66,43 @@ def s2v(s):
 def v2s(v):
     return 1 if v > 0 else 0
 
+def is_unate(ba, f):
+    pos_lits = set()
+    neg_lits = set()
+    def is_lit(f):
+        if isinstance(f, ba.Symbol):
+            pos_lits.add(f.obj)
+            return True
+        if isinstance(f, ba.NOT) \
+                and isinstance(f.args[0], ba.Symbol):
+            neg_lits.add(f.args[0].obj)
+            return True
+        return False
+
+    def is_clause(f):
+        if is_lit(f):
+            return True
+        if isinstance(f, ba.AND):
+            for g in f.args:
+                if not is_lit(g):
+                    return False
+            return True
+        return False
+
+    def test_monotonicity():
+        both = pos_lits.intersection(neg_lits)
+        return not both
+
+    if f in [ba.TRUE, ba.FALSE]:
+        return True
+    if is_clause(f):
+        return test_monotonicity()
+    if isinstance(f, ba.OR):
+        for g in f.args:
+            if not is_clause(g):
+                return False
+        return test_monotonicity()
+    return False
 
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
@@ -81,7 +118,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     The local-monotonic checking requires that a literal never appears
     with both signs in a same Boolean function.
     """
-    def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True):
+    def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
+                        try_unate_hard=True,
+                        encoding="auto"):
         """
         Constructor for :py:class:`.MPBoooleanNetwork`.
 
@@ -98,49 +137,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         >>> bn["a"] = ".."; ...
         >>> mbn = MPBooleanNetwork(bn)
         """
-        self.auto_dnf = auto_dnf
+        assert encoding in ["auto", "unate-dnf", "bdd"]
+        self.auto_dnf = auto_dnf and encoding != "bdd"
+        self.encoding = encoding
+        self.try_unate_hard = try_unate_hard
         super(MPBooleanNetwork, self).__init__(bn)
-
-    def formula_well_formed(self, f):
-        pos_lits = set()
-        neg_lits = set()
-        def is_lit(f):
-            if isinstance(f, self.ba.Symbol):
-                pos_lits.add(f.obj)
-                return True
-            if isinstance(f, self.ba.NOT) \
-                    and isinstance(f.args[0], self.ba.Symbol):
-                neg_lits.add(f.args[0].obj)
-                return True
-            return False
-
-        def is_clause(f):
-            if is_lit(f):
-                return True
-            if isinstance(f, self.ba.AND):
-                for g in f.args:
-                    if not is_lit(g):
-                        return False
-                return True
-            return False
-
-        def assert_monotonicity():
-            both = pos_lits.intersection(neg_lits)
-            assert not both, \
-                f"expression '{f}' contains literals with both signs ({both}). Try .simplify()?"
-
-        if f in [self.ba.TRUE, self.ba.FALSE]:
-            return True
-        if is_clause(f):
-            assert_monotonicity()
-            return True
-        if isinstance(f, self.ba.OR):
-            for g in f.args:
-                if not is_clause(g):
-                    return False
-            assert_monotonicity()
-            return True
-        return False
 
     def __setitem__(self, a, f):
         """
@@ -153,8 +154,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         f = self._autobool(f)
         if self.auto_dnf:
             f = self.ba.dnf(f).simplify()
-            f = minibn.simplify_dnf(self.ba, f)
-        assert self.formula_well_formed(f)
+            if self.try_unate_hard:
+                f = minibn.simplify_dnf(self.ba, f)
         return super().__setitem__(self._autokey(a), f)
 
     def asp_of_bn(self):
