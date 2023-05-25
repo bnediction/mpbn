@@ -27,6 +27,7 @@ setup(name=NAME,
         "clingo",
         "colomoto_jupyter>=0.8.0",
         "numpy",
+        "pyeda",
         "scipy",
         "tqdm"
     ],

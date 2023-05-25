@@ -31,6 +31,9 @@ from colomoto import minibn
 from boolean import boolean
 import clingo
 
+from pyeda.boolalg import bdd
+from pyeda.boolalg.expr import expr
+
 __asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
 clingo_options = ["-W", "no-atom-undefined"]
@@ -104,6 +107,34 @@ def is_unate(ba, f):
         return test_monotonicity()
     return False
 
+def asp_of_bdd(bid, b):
+    _rules = dict()
+    def register(node, nid=None):
+        if node is bdd.BDDNODEONE:
+            if nid is not None:
+                _rules[bid] = f"bdd({clingo.String(nid)},1)"
+            return 1
+        elif node is bdd.BDDNODEZERO:
+            if nid is not None:
+                _rules[bid] = f"bdd({clingo.String(nid)},-1)"
+            return -1
+        nid = clingo.String(f"{bid}_n{id(node)}" if nid is None else nid)
+        if nid not in _rules:
+            var = clingo.String(bdd._VARS[node.root].qualname)
+            lo = register(node.lo)
+            hi = register(node.hi)
+            a = f"bdd({nid},{var},{lo},{hi})"
+            _rules[nid] = a
+        return nid
+    register(b.node, bid)
+    return _rules.values()
+
+def bddasp_of_boolfunc(f, i):
+    e = expr(str(f).replace("!","~"))
+    b = bdd.expr2bdd(e)
+    atoms = asp_of_bdd(i, b)
+    return "\n".join((f"{a}." for a in atoms))
+
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
     Most Permissive Boolean Network
@@ -141,6 +172,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         self.auto_dnf = auto_dnf and encoding != "bdd"
         self.encoding = encoding
         self.try_unate_hard = try_unate_hard
+        self._is_unate = dict()
         super(MPBooleanNetwork, self).__init__(bn)
 
     def __setitem__(self, a, f):
@@ -156,19 +188,19 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             f = self.ba.dnf(f).simplify()
             if self.try_unate_hard:
                 f = minibn.simplify_dnf(self.ba, f)
-        return super().__setitem__(self._autokey(a), f)
+        a = self._autokey(a)
+        if self.encoding != "bdd":
+            self._is_unate[a] = is_unate(self.ba, f)
+            if self.encoding == "unate-dnf":
+                assert self._is_unate[a], f"'{f}' seems not unate. Try simplify()?"
+        return super().__setitem__(a, f)
 
     def asp_of_bn(self):
         def clauses_of_dnf(f):
-            if f == self.ba.FALSE:
-                return [False]
-            if f == self.ba.TRUE:
-                return [True]
             if isinstance(f, boolean.OR):
                 return f.args
             else:
                 return [f]
-
         def literals_of_clause(c):
             def make_literal(l):
                 if isinstance(l, boolean.NOT):
@@ -177,18 +209,32 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     return (l.obj, 1)
             lits = c.args if isinstance(c, boolean.AND) else [c]
             return map(make_literal, lits)
+        def encode_dnf(f):
+            facts = []
+            for cid, c in enumerate(clauses_of_dnf(f)):
+                for m, v in literals_of_clause(c):
+                    facts.append(" clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
+            return facts
 
         facts = []
         for n, f in self.items():
             facts.append("node(\"{}\").".format(n))
-            for cid, c in enumerate(clauses_of_dnf(f)):
-                facts.append("\n")
-                if isinstance(c, bool):
-                    facts.append(" constant(\"{}\",{}).".format(n, s2v(c)))
-                else:
-                    for m, v in literals_of_clause(c):
-                        facts.append(" clause(\"{}\",{},\"{}\",{}).".format(n, cid, m, v))
-            facts.append("\n")
+            if self.encoding == "bdd":
+                f_encoding = "bdd"
+            elif self.encoding == "unate-dnf":
+                f_encoding = "dnf"
+            else:
+                f_encoding = "dnf" if self._is_unate[n] else "bdd"
+            if f == self.ba.FALSE:
+                f = False
+            elif f == self.ba.TRUE:
+                f = True
+            if isinstance(f, bool):
+                facts.append(" constant(\"{}\",{}).".format(n, s2v(f)))
+            elif f_encoding == "dnf":
+                facts.extend(encode_dnf(f))
+            elif f_encoding == "bdd":
+                facts.append(bddasp_of_boolfunc(f, n))
         return "".join(facts)
 
     def asp_of_cfg(self, e, t, c):

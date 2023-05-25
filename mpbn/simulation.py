@@ -17,7 +17,7 @@ BNET_SYMBOL_PAT = re.compile(r"[\w\.:]+")
 
 class MPBNSim(MPBooleanNetwork):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs, encoding="unate-dnf")
         g = self.influence_graph()
         self.deps = {}
         for i in g:
