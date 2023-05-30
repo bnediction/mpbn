@@ -26,6 +26,7 @@ True
 """
 
 import os
+import sys
 from colomoto import minibn
 
 from boolean import boolean
@@ -33,6 +34,7 @@ import clingo
 
 from pyeda.boolalg import bdd
 from pyeda.boolalg.expr import expr
+sys.setrecursionlimit(max(100000, sys.getrecursionlimit()))
 
 __asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
