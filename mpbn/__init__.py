@@ -144,6 +144,10 @@ def expr2bpy(ex, ba):
     """
     if isinstance(ex, pyeda.boolalg.expr.Variable):
         return ba.Symbol(str(ex))
+    elif isinstance(ex, pyeda.boolalg.expr._One):
+        return ba.TRUE
+    elif isinstance(ex, pyeda.boolalg.expr._Zero):
+        return ba.FALSE
     elif isinstance(ex, pyeda.boolalg.expr.Complement):
         return ba.NOT(ba.Symbol(str(ex.__invert__())))
     elif isinstance(ex, pyeda.boolalg.expr.NotOp):
@@ -152,7 +156,7 @@ def expr2bpy(ex, ba):
         return ba.OR(*(expr2bpy(x, ba) for x in ex.xs))
     elif isinstance(ex, pyeda.boolalg.expr.AndOp):
         return ba.AND(*(expr2bpy(x, ba) for x in ex.xs))
-    raise NotImplementedError(str(ex))
+    raise NotImplementedError(str(ex), type(ex))
 
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
