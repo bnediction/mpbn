@@ -1,3 +1,4 @@
 boolean.py
 colomoto_jupyter
 clingo
+pyeda
