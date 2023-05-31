@@ -33,6 +33,7 @@ from boolean import boolean
 import clingo
 
 from pyeda.boolalg import bdd
+import pyeda.boolalg.expr
 from pyeda.boolalg.expr import expr
 sys.setrecursionlimit(max(100000, sys.getrecursionlimit()))
 
@@ -137,6 +138,22 @@ def bddasp_of_boolfunc(f, i):
     atoms = asp_of_bdd(i, b)
     return "\n".join((f"{a}." for a in atoms))
 
+def expr2bpy(ex, ba):
+    """
+    converts a pyeda Boolean expression into a boolean.py one
+    """
+    if isinstance(ex, pyeda.boolalg.expr.Variable):
+        return ba.Symbol(str(ex))
+    elif isinstance(ex, pyeda.boolalg.expr.Complement):
+        return ba.NOT(ba.Symbol(str(ex.__invert__())))
+    elif isinstance(ex, pyeda.boolalg.expr.NotOp):
+        return ba.NOT(expr2bpy(ex.x, ba))
+    elif isinstance(ex, pyeda.boolalg.expr.OrOp):
+        return ba.OR(*(expr2bpy(x, ba) for x in ex.xs))
+    elif isinstance(ex, pyeda.boolalg.expr.AndOp):
+        return ba.AND(*(expr2bpy(x, ba) for x in ex.xs))
+    raise NotImplementedError(str(ex))
+
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
     Most Permissive Boolean Network
@@ -152,7 +169,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     with both signs in a same Boolean function.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
-                        try_unate_hard=True,
+                        try_unate_hard=False,
                         encoding="auto"):
         """
         Constructor for :py:class:`.MPBoooleanNetwork`.
@@ -187,7 +204,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             f = self.ba.parse(f)
         f = self._autobool(f)
         if self.auto_dnf:
-            f = self.ba.dnf(f).simplify()
+            e = expr(str(f).replace("!","~"))
+            e = e.to_dnf()
+            e = e.simplify()
+            f = expr2bpy(e, self.ba)
             if self.try_unate_hard:
                 f = minibn.simplify_dnf(self.ba, f)
         a = self._autokey(a)
