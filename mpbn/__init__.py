@@ -1,7 +1,7 @@
 """
 This module provides a simple implementation of Most Permissive Boolean Networks
-(MPBNs) for computing reachability properties, attractors, and reachable
-attractors in locally-monotonic Boolean networks.
+(MPBNs) for computing reachability properties, attractors, reachable attractors.
+Attractors of MPBNs are the *minimal* trap spaces of the underlying Boolean maps.
 See http://dx.doi.org/10.1101/2020.03.22.998377 and https://arxiv.org/abs/1808.10240 for technical details.
 
 It relies on clingo Answer-Set Programming solver
@@ -15,7 +15,7 @@ Quick example:
         "a": "!b",
         "b": "!a",
         "c": "!a & b"})
->>> list(mbn.attractors())
+>>> list(mbn.attractors()) # minimal trap spaces
 [{'a': 0, 'b': 1, 'c': 1}, {'a': 1, 'b': 0, 'c': 0}]
 >>> mbn.reachability({'a': 0, 'b': 1, 'c': 1}, {'a': 1, 'b': 0, 'c': 0})
 False
@@ -164,13 +164,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     Extends ``colomoto.minibn.BooleanNetwork`` class by adding methods for
     computing reachable and attractor properties with the Most Permissive
-    semantics.
-    It requires that the Boolean network is *locally monotonic*.
-
-    Ensures that the Boolean functions are monotonic and in disjunctive normal
-    form (DNF).
-    The local-monotonic checking requires that a literal never appears
-    with both signs in a same Boolean function.
+    update mode.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
                         try_unate_hard=False,
@@ -274,7 +268,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def reachability(self, x, y):
         """
         Returns ``True`` whenever the configuration `y` is reachable from `x`
-        with the Most Permissive semantics.
+        with the Most Permissive update mode.
         Configurations can be partially defined.
         In that case, returns ``True`` whenever there exists a configuration
         matching with `y` which is reachable with at least one configuration
@@ -340,7 +334,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
         """
-        Iterator over attractors of the MPBN.
+        Iterator over attractors of the MPBN (minimal trap spaces of the BN).
         An attractor is an hypercube, represented by a dictionnary mapping every
         component of the network to either ``0``, ``1``, or ``star``.
 
@@ -402,7 +396,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def reachable_from(self, x, reversed=False):
         """
         Returns an iterator over the configurations reachable from ``x`` with the
-        Most Permissive semantics.
+        Most Permissive update mode.
         Configuration ``x`` can be partially defined: in that case a configuration
         is yielded whnever it is reachable from at least one configuration
         matching with ``x``.
@@ -434,7 +428,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def dynamics(self, update_mode="mp", **kwargs):
         """
         Returns a :py:class:`networkx.DiGraph` object representing the transitions between
-        the configurations using the Most Permissive semantics by default.
+        the configurations using the Most Permissive update mode by default.
         See :py:meth:`colomoto.minibn.BooleanNetwork.dynamics`.
         """
         if update_mode in ["mp", "most-permissive"]:
