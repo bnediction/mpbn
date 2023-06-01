@@ -55,6 +55,15 @@ def clingo_subsets(limit=0):
     s.configuration.solver[0].dom_mod = "5,16"
     return s
 
+def clingo_supsets(limit=0):
+    s = clingo.Control(clingo_options)
+    s.configuration.solve.models = limit
+    s.configuration.solve.project = 1
+    s.configuration.solve.enum_mode = "domRec"
+    s.configuration.solver[0].heuristic = "Domain"
+    s.configuration.solver[0].dom_mod = "3,16"
+    return s
+
 def clingo_exists():
     s = clingo.Control(clingo_options)
     s.configuration.solve.models = 1
@@ -332,28 +341,18 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 x[n] = v
             yield x
 
-    def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
-        """
-        Iterator over attractors of the MPBN (minimal trap spaces of the BN).
-        An attractor is an hypercube, represented by a dictionnary mapping every
-        component of the network to either ``0``, ``1``, or ``star``.
 
-        :param dict[str,int] reachable_from: restrict to the attractors
-            reachable from the given configuration. Whenever partial, restrict
-            attractors to the one reachable by at least one matching
-            configuration.
-        :param dict[str,int] constraints: consider only attractors matching with
-            the given constraints.
-        :param int limit: maximum number of solutions, ``0`` for unlimited.
-        :param str star: value to use for components which are free in the
-            attractor
-        """
-        s = clingo_subsets(limit=limit)
+    def _trapspaces(self, reachable_from=None, subcube={}, limit=0, star="*",
+                        mode="min", exclude_full=False):
+        solver = clingo_subsets if mode == "min" else clingo_supsets
+        s = solver(limit=limit)
         s.load(aspf("mp_eval.asp"))
         s.load(aspf("mp_attractor.asp"))
         s.add("base", [], self.asp_of_bn())
         e = "__a"
         t2 = "final"
+        if exclude_full and not subcube:
+            s.add("base", [], f"{{ mp_reach({e},{t2},N,(-1;1)): node(N) }} {len(self)*2-1}.")
         if reachable_from:
             t1 = "0"
             s.load(aspf("mp_positivereach-np.asp"))
@@ -361,8 +360,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
             s.add("base", [], "mp_state({},{},N,V) :- attractor(N,V).".format(e,t2))
 
-        for n, b in constraints.items():
-            s.add("base", [], "mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(b)))
+        for n, b in subcube.items():
+            if isinstance(b, str):
+                b = int(b)
+            if b not in [0,1]:
+                continue
             s.add("base", [], ":- mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(1-b)))
 
         s.add("base", [], "#show attractor/2.")
@@ -382,10 +384,40 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 else:
                     v = 1 if v == 1 else 0
                 if attractor[n] is not None:
-                    attractor[n] = star
+                    if star is not None:
+                        attractor[n] = star
+                    else:
+                        del attractor[n]
                 else:
                     attractor[n] = v
             yield attractor
+
+    def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
+        """
+        Iterator over attractors of the MPBN (minimal trap spaces of the BN).
+        An attractor is an hypercube, represented by a dictionnary mapping every
+        component of the network to either ``0``, ``1``, or ``star``.
+
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        :param str star: value to use for components which are free in the
+            attractor
+        """
+        return self._trapspaces(reachable_from=reachable_from,
+                                subcube=constraints, limit=limit, star=star,
+                                mode="min")
+
+    minimal_trapspaces = attractors
+
+    def maximal_trapspaces(self, limit=0, subcube={}, star="*",
+                            exclude_full=True):
+        return self._trapspaces(subcube=subcube, limit=limit, star=star,
+                                mode="max", exclude_full=exclude_full)
 
     def has_cyclic_attractor(self):
         for a in self.attractors():
