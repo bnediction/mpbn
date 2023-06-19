@@ -176,6 +176,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     update mode.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
+                        simplify=True,
                         try_unate_hard=False,
                         encoding="auto"):
         """
@@ -198,6 +199,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         self.auto_dnf = auto_dnf and encoding != "bdd"
         self.encoding = encoding
         self.try_unate_hard = try_unate_hard
+        self._simplify = simplify
         self._is_unate = dict()
         super(MPBooleanNetwork, self).__init__(bn)
 
@@ -217,6 +219,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             f = expr2bpy(e, self.ba)
             if self.try_unate_hard:
                 f = minibn.simplify_dnf(self.ba, f)
+            elif self._simplify:
+                f = f.simplify()
         a = self._autokey(a)
         if self.encoding != "bdd":
             self._is_unate[a] = is_unate(self.ba, f)
