@@ -176,7 +176,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     update mode.
     """
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
-                        simplify=True,
+                        simplify=False,
                         try_unate_hard=False,
                         encoding="auto"):
         """
