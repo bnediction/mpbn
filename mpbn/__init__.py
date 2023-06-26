@@ -147,6 +147,39 @@ def bddasp_of_boolfunc(f, i):
     atoms = asp_of_bdd(i, b)
     return "\n".join((f"{a}." for a in atoms))
 
+def circuitasp_of_boolfunc(f, i, ba):
+    atoms = []
+    fid = clingo.String(i)
+    def encode(expr):
+        if expr == ba.TRUE:
+            nodeid = "(constant,1)"
+            atoms.append(f"circuit({nodeid}).")
+        elif expr == ba.FALSE:
+            nodeid = "(constant,-1)"
+            atoms.append(f"circuit({nodeid}).")
+        elif isinstance(expr, ba.Symbol):
+            nodeid = f"(var,{clingo.String(expr.obj)})"
+            atoms.append(f"circuit({fid},{nodeid}).")
+        else:
+            nodeid = f"n{id(expr)}"
+            if isinstance(expr, ba.NOT):
+                nodetype = "neg"
+            elif isinstance(expr, ba.AND):
+                nodetype = "and"
+            elif isinstance(expr, ba.OR):
+                nodetype = "or"
+            else:
+                raise NotImplementedError(type(expr))
+            atoms.append(f"circuit({fid},{nodeid},{nodetype}).")
+            for child in expr.args:
+                cid = encode(child)
+                atoms.append(f"circuitedge({fid},{nodeid},{cid}).")
+        return nodeid
+    root = encode(f)
+    atoms.append(f"circuit({fid},root,{root}).\n")
+    return "\n".join(atoms)
+
+
 def expr2bpy(ex, ba):
     """
     converts a pyeda Boolean expression into a boolean.py one
@@ -195,8 +228,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         >>> bn["a"] = ".."; ...
         >>> mbn = MPBooleanNetwork(bn)
         """
-        assert encoding in ["auto", "unate-dnf", "bdd"]
-        self.auto_dnf = auto_dnf and encoding != "bdd"
+        assert encoding in ["auto", "unate-dnf", "bdd", "circuit"]
+        self.auto_dnf = auto_dnf and encoding in ["auto", "unate-dnf"]
         self.encoding = encoding
         self.try_unate_hard = try_unate_hard
         self._simplify = simplify
@@ -222,7 +255,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             elif self._simplify:
                 f = f.simplify()
         a = self._autokey(a)
-        if self.encoding != "bdd":
+        if self.encoding in ["auto", "unate-dnf"]:
             self._is_unate[a] = is_unate(self.ba, f)
             if self.encoding == "unate-dnf":
                 assert self._is_unate[a], f"'{f}' seems not unate. Try simplify()?"
@@ -252,22 +285,24 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         facts = []
         for n, f in self.items():
             facts.append("node(\"{}\").".format(n))
-            if self.encoding == "bdd":
-                f_encoding = "bdd"
-            elif self.encoding == "unate-dnf":
+            if self.encoding == "unate-dnf":
                 f_encoding = "dnf"
-            else:
+            elif self.encoding == "auto":
                 f_encoding = "dnf" if self._is_unate[n] else "bdd"
+            else:
+                f_encoding = self.encoding
             if f == self.ba.FALSE:
                 f = False
             elif f == self.ba.TRUE:
                 f = True
             if isinstance(f, bool):
-                facts.append(" constant(\"{}\",{}).".format(n, s2v(f)))
+                facts.append("constant(\"{}\",{}).".format(n, s2v(f)))
             elif f_encoding == "dnf":
                 facts.extend(encode_dnf(f))
             elif f_encoding == "bdd":
                 facts.append(bddasp_of_boolfunc(f, n))
+            elif f_encoding == "circuit":
+                facts.append(circuitasp_of_boolfunc(f, n, self.ba))
         return "".join(facts)
 
     def asp_of_cfg(self, e, t, c):
@@ -290,6 +325,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         :param dict[str,int] x: initial configuration
         :param dict[str,int] y: target configuration
         """
+        assert self.encoding != "circuit", "Unsupported encoding"
         s = clingo_exists()
         s.load(aspf("mp_eval.asp"))
         s.load(aspf("mp_positivereach-np.asp"))
@@ -321,10 +357,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         e = "fp"
         t2 = "fp"
         s.add("base", [], self.asp_of_cfg(e, t2, constraints))
-        s.load(aspf("mp_eval.asp"))
+        s.load(aspf("mp_eval.asp") if self.encoding != "circuit" else aspf("eval_circuit.asp"))
         s.add("base", [], f"mp_reach({e},{t2},N,V) :- mp_state({e},{t2},N,V).")
         s.add("base", [], f":- mp_state({e},{t2},N,V), mp_eval({e},{t2},N,-V).")
         if reachable_from:
+            assert self.encoding != "circuit", "Unsupported encoding"
             t1 = "0"
             s.load(aspf("mp_positivereach-np.asp"))
             s.add("base", [], self.asp_of_cfg(e,t1,reachable_from))
@@ -351,6 +388,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         solver = clingo_subsets if mode == "min" else clingo_supsets
         s = solver(limit=limit)
         s.load(aspf("mp_eval.asp"))
+        assert self.encoding != "circuit", "Unsupported encoding"
         s.load(aspf("mp_attractor.asp"))
         s.add("base", [], self.asp_of_bn())
         e = "__a"
@@ -442,6 +480,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         """
         s = clingo_enum()
         s.load(aspf("mp_eval.asp"))
+        assert self.encoding != "circuit", "Unsupported encoding"
         s.load(aspf("mp_positivereach-np.asp"))
         s.add("base", [], self.asp_of_bn())
         e = "default"
