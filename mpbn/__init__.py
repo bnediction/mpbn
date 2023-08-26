@@ -208,6 +208,12 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     computing reachable and attractor properties with the Most Permissive
     update mode.
     """
+    supported_encodings = [
+        "auto", "unate-dnf", "bdd", "circuit",
+                                "force-unate-dnf"]
+    dnf_encodings = ["auto", "unate-dnf", "force-unate-dnf"]
+    nonpc_encodings = ["circuit"]
+
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
                         simplify=False,
                         try_unate_hard=False,
@@ -228,9 +234,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         >>> bn["a"] = ".."; ...
         >>> mbn = MPBooleanNetwork(bn)
         """
-        assert encoding in ["auto", "unate-dnf", "bdd", "circuit",
-                                "force-unate-dnf"]
-        self.auto_dnf = auto_dnf and encoding in ["auto", "unate-dnf", "force-unate-dnf"]
+        assert encoding in self.supported_encodings
+        self.auto_dnf = auto_dnf and encoding in self.dnf_encodings
         self.encoding = encoding
         self.try_unate_hard = try_unate_hard
         self._simplify = simplify
@@ -256,7 +261,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             elif self._simplify:
                 f = f.simplify()
         a = self._autokey(a)
-        if self.encoding in ["auto", "unate-dnf", "force-unate-dnf"]:
+        if self.encoding in self.dnf_encodings:
             self._is_unate[a] = is_unate(self.ba, f)
             if self.encoding == "unate-dnf":
                 assert self._is_unate[a], f"'{f}' seems not unate. Try simplify()?"
@@ -306,6 +311,15 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 facts.append(circuitasp_of_boolfunc(f, n, self.ba))
         return "".join(facts)
 
+    def load_eval(self, solver):
+        if self.encoding == "circuit":
+            solver.load(aspf("eval_circuit.asp"))
+        else:
+            solver.load(aspf("mp_eval.asp"))
+
+    def assert_pc_encoding(self):
+        assert self.encoding not in self.nonpc_encodings, "Unsupported encoding"
+
     def asp_of_cfg(self, e, t, c):
         facts = ["timepoint({},{}).".format(e,t)]
         facts += [" mp_state({},{},\"{}\",{}).".format(e,t,n,s2v(s))
@@ -326,9 +340,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         :param dict[str,int] x: initial configuration
         :param dict[str,int] y: target configuration
         """
-        assert self.encoding in ["auto", "unate-dnf", "bdd"], "Unsupported encoding"
+        self.assert_pc_encoding()
         s = clingo_exists()
-        s.load(aspf("mp_eval.asp"))
+        self.load_eval(s)
         s.load(aspf("mp_positivereach-np.asp"))
         s.add("base", [], self.asp_of_bn())
         e = "default"
@@ -357,12 +371,12 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         s.add("base", [], self.asp_of_bn())
         e = "fp"
         t2 = "fp"
+        self.load_eval(s)
         s.add("base", [], self.asp_of_cfg(e, t2, constraints))
-        s.load(aspf("mp_eval.asp") if self.encoding != "circuit" else aspf("eval_circuit.asp"))
         s.add("base", [], f"mp_reach({e},{t2},N,V) :- mp_state({e},{t2},N,V).")
         s.add("base", [], f":- mp_state({e},{t2},N,V), mp_eval({e},{t2},N,-V).")
         if reachable_from:
-            assert self.encoding in ["auto", "unate-dnf", "bdd"], "Unsupported encoding"
+            self.assert_pc_encoding()
             t1 = "0"
             s.load(aspf("mp_positivereach-np.asp"))
             s.add("base", [], self.asp_of_cfg(e,t1,reachable_from))
@@ -386,10 +400,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     def _trapspaces(self, reachable_from=None, subcube={}, limit=0, star="*",
                         mode="min", exclude_full=False):
+        self.assert_pc_encoding()
         solver = clingo_subsets if mode == "min" else clingo_supsets
         s = solver(limit=limit)
-        s.load(aspf("mp_eval.asp"))
-        assert self.encoding in ["auto", "unate-dnf", "bdd"], "Unsupported encoding"
+        self.load_eval(s)
         s.load(aspf("mp_attractor.asp"))
         s.add("base", [], self.asp_of_bn())
         e = "__a"
@@ -479,9 +493,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         Whenever ``reversed`` is ``True``, yields over the configurations that can
         reach `x` instead.
         """
+        self.assert_pc_encoding()
         s = clingo_enum()
-        s.load(aspf("mp_eval.asp"))
-        assert self.encoding in ["auto", "unate-dnf", "bdd"], "Unsupported encoding"
+        self.load_eval(s)
         s.load(aspf("mp_positivereach-np.asp"))
         s.add("base", [], self.asp_of_bn())
         e = "default"
