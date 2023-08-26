@@ -200,6 +200,8 @@ def expr2bpy(ex, ba):
         return ba.AND(*(expr2bpy(x, ba) for x in ex.xs))
     raise NotImplementedError(str(ex), type(ex))
 
+DEFAULT_ENCODING = "auto"
+
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
     Most Permissive Boolean Network
@@ -217,7 +219,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
                         simplify=False,
                         try_unate_hard=False,
-                        encoding="auto"):
+                        encoding=DEFAULT_ENCODING):
         """
         Constructor for :py:class:`.MPBoooleanNetwork`.
 
