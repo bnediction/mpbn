@@ -212,8 +212,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     """
     supported_encodings = [
         "auto", "unate-dnf", "bdd", "circuit",
-                                "force-unate-dnf"]
-    dnf_encodings = ["auto", "unate-dnf", "force-unate-dnf"]
+                "mixed-dnf-bdd",
+                "force-unate-dnf"]
+    dnf_encodings = ["auto", "unate-dnf", "force-unate-dnf",
+                        "mixed-dnf-bdd"]
     nonpc_encodings = ["circuit"]
 
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
@@ -310,6 +312,12 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 facts.extend(encode_dnf(f))
             elif f_encoding == "bdd":
                 facts.append(bddasp_of_boolfunc(f, n))
+            elif f_encoding == "mixed-dnf-bdd":
+                facts.extend(encode_dnf(f))
+                if self._is_unate[n]:
+                    facts.append(f"unate(\"{n}\").")
+                else:
+                    facts.append(bddasp_of_boolfunc(f, n))
             elif f_encoding == "circuit":
                 facts.append(circuitasp_of_boolfunc(f, n, self.ba))
         return "".join(facts)
@@ -317,6 +325,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def load_eval(self, solver):
         if self.encoding == "circuit":
             solver.load(aspf("eval_circuit.asp"))
+        elif self.encoding == "mixed-dnf-bdd":
+            solver.load(aspf("eval_mixed.asp"))
         else:
             solver.load(aspf("mp_eval.asp"))
 
