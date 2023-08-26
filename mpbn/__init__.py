@@ -256,7 +256,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         if self.auto_dnf:
             e = expr(str(f).replace("!","~"))
             e = e.to_dnf()
-            e = e.simplify()
+            if self._simplify is not None:
+                e = e.simplify()
             f = expr2bpy(e, self.ba)
             if self.try_unate_hard:
                 f = minibn.simplify_dnf(self.ba, f)
