@@ -8,9 +8,9 @@ def main():
     ap = ArgumentParser(prog=sys.argv[0])
     ap.add_argument("bnet_file")
     ap.add_argument("method", choices=["attractors", "fixedpoints", "bn2asp"])
-    ap.add_argument("--encoding", default="auto", choices=["auto", "bdd",
-                                                           "unate-dnf",
-                                                           "circuit"])
+    ap.add_argument("--encoding", default=mpbn.DEFAULT_ENCODING,
+                    choices=mpbn.MPBooleanNetwork.supported_encodings,
+                    help=f"Encoding method (default: {mpbn.DEFAULT_ENCODING})")
     ap.add_argument("--limit", type=int, default=0,
                     help="limit the number of results")
     args = ap.parse_args()
