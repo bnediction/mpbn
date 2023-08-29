@@ -200,7 +200,7 @@ def expr2bpy(ex, ba):
         return ba.AND(*(expr2bpy(x, ba) for x in ex.xs))
     raise NotImplementedError(str(ex), type(ex))
 
-DEFAULT_ENCODING = "auto"
+DEFAULT_ENCODING = "mixed-dnf-bdd"
 
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
@@ -211,10 +211,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     update mode.
     """
     supported_encodings = [
-        "auto", "unate-dnf", "bdd", "circuit",
-                "mixed-dnf-bdd",
-                "force-unate-dnf"]
-    dnf_encodings = ["auto", "unate-dnf", "force-unate-dnf",
+            "unate-dnf", "bdd", "circuit",
+            "dnf-bdd", "mixed-dnf-bdd",
+            "force-unate-dnf"]
+    dnf_encodings = ["dnf-bdd", "unate-dnf", "force-unate-dnf",
                         "mixed-dnf-bdd"]
     nonpc_encodings = ["circuit"]
 
@@ -272,7 +272,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 assert self._is_unate[a], f"'{f}' seems not unate. Try simplify()?"
         return super().__setitem__(a, f)
 
-    def asp_of_bn(self):
+    def asp_of_bn(self, encoding=None):
+        if encoding is None:
+            encoding = self.encoding
+
         def clauses_of_dnf(f):
             if isinstance(f, boolean.OR):
                 return f.args
@@ -296,12 +299,12 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         facts = []
         for n, f in self.items():
             facts.append("node(\"{}\").".format(n))
-            if self.encoding in ["unate-dnf", "force-unate-dnf"]:
+            if encoding in ["unate-dnf", "force-unate-dnf"]:
                 f_encoding = "dnf"
-            elif self.encoding == "auto":
+            elif encoding == "dnf-bdd":
                 f_encoding = "dnf" if self._is_unate[n] else "bdd"
             else:
-                f_encoding = self.encoding
+                f_encoding = encoding
             if f == self.ba.FALSE:
                 f = False
             elif f == self.ba.TRUE:
