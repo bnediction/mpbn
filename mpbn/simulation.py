@@ -177,14 +177,14 @@ def step(f, mem, x, depth, W):
     sample_configuration(f, mem, x, S, W)
     return True
 
-
 def is_subhypercube(a, b):
     x, H = a
     y, G = b
     return H.issubset(G) and \
             not [i for i in set(x).difference(G) if x[i] != y[i]]
 
-def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10):
+def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10, emit=None):
+    if not isinstance(f, MPBNSim): f = MPBNSim(f)
     I = set(f)
     n = len(f)
     def filter_reachable_attractors(A, x):
@@ -194,6 +194,8 @@ def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10):
     x = x.copy()
     A = filter_reachable_attractors(A, x)
     while len(A) > 1:
+        if emit is not None:
+            emit(x)
         if not step(f, mem, x, depth, W):
             k = 0
         if k % refresh_rate == 0:
