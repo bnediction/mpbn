@@ -204,7 +204,6 @@ def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10, emit=Non
     return A[0][0]
 
 def sample_trace(f, mem, x, A, depth, W):
-    trace = list()
     if not isinstance(f, MPBNSim): f = MPBNSim(f)
     I = set(f)
     n = len(f)
@@ -213,10 +212,12 @@ def sample_trace(f, mem, x, A, depth, W):
         return [(ia,a) for (ia,a) in A if is_subhypercube(a, (x,H))]
     k = 1
     x = x.copy()
+    trace = list()
+    trace.append(x.copy())
     A = filter_reachable_attractors(A, x)
     while x != A[0][1][0]:
-        trace.append(x)
         step(f, mem, x, depth, W)
+        trace.append(x.copy())
         A = filter_reachable_attractors(A, x)
     return trace
 
