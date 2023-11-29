@@ -215,7 +215,7 @@ def sample_trace(f, mem, x, A, depth, W):
     trace = list()
     trace.append(x.copy())
     A = filter_reachable_attractors(A, x)
-    while x != A[0][1][0]:
+    while len(A) and x != A[0][1][0]:
         step(f, mem, x, depth, W)
         trace.append(x.copy())
         A = filter_reachable_attractors(A, x)
