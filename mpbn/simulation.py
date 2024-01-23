@@ -221,6 +221,30 @@ def sample_trace(f, mem, x, A, depth, W):
         A = filter_reachable_attractors(A, x)
     return trace
 
+
+def sample_switchpoint(f, mem, x, A, depth, W):
+    """ experimental: sample a trace and stop at an attractor's
+    strong bassin, returning the attractor as well."""
+    if not isinstance(f, MPBNSim): f = MPBNSim(f)
+    I = set(f)
+    n = len(f)
+    def filter_reachable_attractors(A, x):
+        H = spread(f, x, I, n)
+        return [(ia,a) for (ia,a) in A if is_subhypercube(a, (x,H))]
+    
+    names = lambda _A: set(_a_name for _a_name, _a_cfg in _A)
+    k = 1
+    x = x.copy()
+    trace = list()
+    A = filter_reachable_attractors(A, x)
+    trace.append((x.copy(), names(A)))
+    while len(A) > 1:
+        step(f, mem, x, depth, W)
+        A = filter_reachable_attractors(A, x)
+        trace.append((x.copy(), names(A)))
+    #return [*trace, [a_name for a_name, a_x in A]] 
+    return trace
+
 def convert_attractor(A):
     H = {i for i,v in A.items() if v == '*'}
     x = {i:v for i,v in A.items() if v != '*'}
