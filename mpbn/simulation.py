@@ -351,6 +351,7 @@ def nexponential_depth(f, base=2):
 ##
 ## Rates
 ##
+## TODO: resolve this
 def uniform_rates(f):
     """
     Returns 1
