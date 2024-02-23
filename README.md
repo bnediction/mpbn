@@ -1,5 +1,5 @@
 
-The `mpbn` Python module offers a simple implementation of reachability and attractor analysis (minimal trap spaces) in *Most Permissive Boolean Networks* ([doi:10.1038/s41467-020-18112-5](https://doi.org/10.1038/s41467-020-18112-5)).
+The `mpbn` Python module offers a simple implementation of reachability and attractor analysis (minimal trap spaces) in *Most Permissive Boolean Networks* ([doi:10.1038/s41467-020-18112-5](https://doi.org/10.1038/s41467-020-18112-5)). The `mpbn` Python module also offers a *Most Permissive* simulator, which provides trajectory sampling and computes attractor propensities (see paper [Variable-Depth Simulation of Most Permissive Boolean Networks](https://link.springer.com/chapter/10.1007/978-3-031-15034-0_7) for more details).
 
 It is built on the `minibn` module from [colomoto-jupyter](https://github.com/colomoto/colomoto-jupyter) which allows importation of Boolean networks in many formats. See http://colomoto.org/notebook.
 
