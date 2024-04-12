@@ -1,8 +1,34 @@
 import networkx as nx
 from pyeda.boolalg.minimization import *
+import pyeda.boolalg.expr
 from pyeda.inter import expr
 
 from colomoto import minibn
+
+def expr2str(ex):
+    """
+    converts a pyeda Boolean expression into a boolean.py one
+    """
+    def _protect(e):
+        if isinstance(e, (pyeda.boolalg.expr.OrOp, pyeda.boolalg.expr.AndOp)):
+            return f"({expr2str(e)})"
+        return expr2str(e)
+    if isinstance(ex, pyeda.boolalg.expr.Variable):
+        return str(ex)
+    elif isinstance(ex, pyeda.boolalg.expr._One):
+        return "1"
+    elif isinstance(ex, pyeda.boolalg.expr._Zero):
+        return "0"
+    elif isinstance(ex, pyeda.boolalg.expr.Complement):
+        return f"!{_protect(ex.__invert__())}"
+    elif isinstance(ex, pyeda.boolalg.expr.NotOp):
+        return f"!{_protect(ex.x)}"
+    elif isinstance(ex, pyeda.boolalg.expr.OrOp):
+        return " | ".join(map(_protect, ex.xs))
+    elif isinstance(ex, pyeda.boolalg.expr.AndOp):
+        return " & ".join(map(_protect, ex.xs))
+    raise NotImplementedError(str(ex), type(ex))
+
 
 def bn_of_asynchronous_transition_graph(adyn, names,
             parse_node=(lambda n: tuple(map(int, n))),
@@ -38,8 +64,8 @@ def bn_of_asynchronous_transition_graph(adyn, names,
             if target:
                 pos.append(x)
         f.append(expr("|".join(map(expr_of_cfg,pos))))
-    f = bn_class(dict(zip(names, map(lambda e: str(e).replace('~','!'), espresso_exprs(*f)))))
-    return f
+    f = map(expr2str, espresso_exprs(*f))
+    return bn_class(dict(zip(names, f)))
 
 if __name__ == "__main__":
     import mpbn
