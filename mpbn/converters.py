@@ -7,7 +7,7 @@ from colomoto import minibn
 
 def expr2str(ex):
     """
-    converts a pyeda Boolean expression into a boolean.py one
+    converts a pyeda Boolean expression to string representation
     """
     def _protect(e):
         if isinstance(e, (pyeda.boolalg.expr.OrOp, pyeda.boolalg.expr.AndOp)):
