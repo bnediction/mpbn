@@ -67,8 +67,10 @@ def bn_of_asynchronous_transition_graph(adyn, names,
         if not pos:
             f.append(expr("0"))
         else:
-            f.append(expr("|".join(map(expr_of_cfg,pos))))
-    f = map(expr2str, espresso_exprs(*f))
+            e = expr("|".join(map(expr_of_cfg,pos)))
+            e, = espresso_exprs(e.to_dnf())
+            f.append(e)
+    f = map(expr2str, f)
     f = bn_class(dict(zip(names, f)))
     if simplify:
         f = f.simplify()
