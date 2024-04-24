@@ -32,7 +32,8 @@ def expr2str(ex):
 
 def bn_of_asynchronous_transition_graph(adyn, names,
             parse_node=(lambda n: tuple(map(int, n))),
-            bn_class=minibn.BooleanNetwork):
+            bn_class=minibn.BooleanNetwork,
+            simplify=True):
     """
     Convert the transition graph of a (fully) asynchronous Boolean network to
     a propositional logic representation.
@@ -63,9 +64,15 @@ def bn_of_asynchronous_transition_graph(adyn, names,
             target = y[i]
             if target:
                 pos.append(x)
-        f.append(expr("|".join(map(expr_of_cfg,pos))))
+        if not pos:
+            f.append(expr("0"))
+        else:
+            f.append(expr("|".join(map(expr_of_cfg,pos))))
     f = map(expr2str, espresso_exprs(*f))
-    return bn_class(dict(zip(names, f)))
+    f = bn_class(dict(zip(names, f)))
+    if simplify:
+        f = f.simplify()
+    return f
 
 if __name__ == "__main__":
     import mpbn
