@@ -13,6 +13,9 @@ Welcome to mpbn's documentation!
 .. automodule:: mpbn
     :members:
 
+.. automodule:: mpbn.converters
+   :members:
+
 
 Indices and tables
 ==================
