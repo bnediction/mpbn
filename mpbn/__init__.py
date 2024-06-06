@@ -371,18 +371,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         res = s.solve()
         return res.satisfiable
 
-    def fixedpoints(self, reachable_from=None, constraints={}, limit=0):
-        """
-        Iterator over fixed points of the MPBN (i.e., of f)
-
-        :param dict[str,int] reachable_from: restrict to the attractors
-            reachable from the given configuration. Whenever partial, restrict
-            attractors to the one reachable by at least one matching
-            configuration.
-        :param dict[str,int] constraints: consider only attractors matching with
-            the given constraints.
-        :param int limit: maximum number of solutions, ``0`` for unlimited.
-        """
+    def _fixedpoints(self, reachable_from=None, constraints={}, limit=0):
         s = clingo_enum(limit=limit)
         s.add("base", [], self.asp_of_bn())
         e = "fp"
@@ -398,8 +387,23 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             s.add("base", [], self.asp_of_cfg(e,t1,reachable_from))
             s.add("base", [], "is_reachable({},{},{}).".format(e,t1,t2))
         s.add("base", [], f"#show. #show fixpoint(N,V) : mp_state({e},{t2},N,V).")
-
         s.ground([("base",[])])
+        return s
+
+    def fixedpoints(self, reachable_from=None, constraints={}, limit=0):
+        """
+        Iterator over fixed points of the MPBN (i.e., of f)
+
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        """
+        s = self._fixedpoints(reachable_from=reachable_from,
+                              constraints=constraints, limit=limit)
         for sol in s.solve(yield_=True):
             x = {n: None for n in self}
             data = sol.symbols(shown=True)
@@ -413,8 +417,24 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                 x[n] = v
             yield x
 
+    def count_fixedpoints(self, reachable_from=None, constraints={}, limit=0):
+        """
+        Returns number of fixed points
 
-    def _trapspaces(self, reachable_from=None, subcube={}, limit=0, star="*",
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        """
+        s = self._fixedpoints(reachable_from=reachable_from,
+                              constraints=constraints, limit=limit)
+        return sum((1 for _ in s.solve(yield_=True)))
+
+
+    def _trapspaces(self, reachable_from=None, subcube={}, limit=0,
                         mode="min", exclude_full=False):
         self.assert_pc_encoding()
         solver = clingo_subsets if mode == "min" else clingo_supsets
@@ -441,8 +461,11 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             s.add("base", [], ":- mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(1-b)))
 
         s.add("base", [], "#show attractor/2.")
-
         s.ground([("base",[])])
+        return s
+
+    def _yield_trapspaces(self, *args, star="*", **kwargs):
+        s = self._trapspaces(*args, **kwargs)
         for sol in s.solve(yield_=True):
             attractor = {n: None for n in self}
             data = sol.symbols(shown=True)
@@ -465,6 +488,10 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
                     attractor[n] = v
             yield attractor
 
+    def _count_trapspaces(self, *args, **kwargs):
+        s = self._trapspaces(*args, **kwargs)
+        return sum((1 for _ in s.solve(yield_=True)))
+
     def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
         """
         Iterator over attractors of the MPBN (minimal trap spaces of the BN).
@@ -481,16 +508,48 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         :param str star: value to use for components which are free in the
             attractor
         """
-        return self._trapspaces(reachable_from=reachable_from,
+        return self._yield_trapspaces(reachable_from=reachable_from,
                                 subcube=constraints, limit=limit, star=star,
                                 mode="min")
-
     minimal_trapspaces = attractors
 
     def maximal_trapspaces(self, limit=0, subcube={}, star="*",
                             exclude_full=True):
-        return self._trapspaces(subcube=subcube, limit=limit, star=star,
+        return self._yield_trapspaces(subcube=subcube, limit=limit, star=star,
                                 mode="max", exclude_full=exclude_full)
+
+    def count_attractors(self, reachable_from=None, constraints={}, limit=0):
+        """
+        Returns number of attractors of the MPBN (minimal trap spaces of the BN).
+
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        """
+        return self._count_trapspaces(reachable_from=reachable_from,
+                                subcube=constraints, limit=limit,
+                                mode="min")
+    count_minimal_trapspaces = count_attractors
+
+    def count_maximal_trapspaces(self, reachable_from=None, constraints={}, limit=0):
+        """
+        Returns number of attractors of the MPBN (minimal trap spaces of the BN).
+
+        :param dict[str,int] reachable_from: restrict to the attractors
+            reachable from the given configuration. Whenever partial, restrict
+            attractors to the one reachable by at least one matching
+            configuration.
+        :param dict[str,int] constraints: consider only attractors matching with
+            the given constraints.
+        :param int limit: maximum number of solutions, ``0`` for unlimited.
+        """
+        return self._count_trapspaces(reachable_from=reachable_from,
+                                subcube=constraints, limit=limit,
+                                mode="max")
 
     def has_cyclic_attractor(self):
         for a in self.attractors():
