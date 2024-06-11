@@ -1,10 +1,14 @@
 
 import mpbn
 
+import os
 import sys
 from argparse import ArgumentParser
 
 def main():
+    if "CLINGO_OPTS" in os.environ:
+        mpbn.clingo_options += os.environ["CLINGO_OPTS"].split(" ")
+
     ap = ArgumentParser(prog=sys.argv[0])
     ap.add_argument("bnet_file")
     ap.add_argument("method", choices=["attractors", "fixedpoints", "bn2asp"])
@@ -13,6 +17,8 @@ def main():
     ap.add_argument("--encoding", default=mpbn.DEFAULT_ENCODING,
                     choices=mpbn.MPBooleanNetwork.supported_encodings,
                     help=f"Encoding method (default: {mpbn.DEFAULT_ENCODING})")
+    ap.add_argument("--input-is-dnf", action="store_true", default=False,
+                    help="Functions are already in DNF form")
     ap.add_argument("--simplify", action="store_true", default=False,
                     help="Try costly Boolean function simplifications to improve encoding")
     ap.add_argument("--try-unate-hard", action="store_true", default=False,
@@ -21,6 +27,7 @@ def main():
                     help="Returns only the number of solutions")
     args = ap.parse_args()
     mbn = mpbn.MPBooleanNetwork(args.bnet_file, encoding=args.encoding,
+                    auto_dnf=not args.input_is_dnf,
                     simplify=args.simplify,
                     try_unate_hard=args.try_unate_hard)
     if args.method in ["attractors", "fixedpoints"]:
