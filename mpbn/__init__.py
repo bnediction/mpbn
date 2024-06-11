@@ -46,23 +46,20 @@ if hasattr(clingo, "version") and clingo.version() >= (5,5,0):
 def aspf(basename):
     return os.path.join(__asplibdir__, basename)
 
-def clingo_subsets(limit=0):
-    s = clingo.Control(clingo_options)
+def _clingo_domrec(mod, limit=0, project=False, extra_opts=[]):
+    s = clingo.Control(clingo_options + extra_opts)
     s.configuration.solve.models = limit
-    s.configuration.solve.project = 1
+    if project:
+        s.configuration.solve.project = 1
     s.configuration.solve.enum_mode = "domRec"
     s.configuration.solver[0].heuristic = "Domain"
-    s.configuration.solver[0].dom_mod = "5,16"
+    s.configuration.solver[0].dom_mod = f"{mod},{16 if project else 0}"
     return s
 
-def clingo_supsets(limit=0):
-    s = clingo.Control(clingo_options)
-    s.configuration.solve.models = limit
-    s.configuration.solve.project = 1
-    s.configuration.solve.enum_mode = "domRec"
-    s.configuration.solver[0].heuristic = "Domain"
-    s.configuration.solver[0].dom_mod = "3,16"
-    return s
+def clingo_subsets(**opts):
+    return _clingo_domrec(5, **opts)
+def clingo_supsets(**opts):
+    return _clingo_domrec(3, **opts)
 
 def clingo_exists():
     s = clingo.Control(clingo_options)
@@ -372,7 +369,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         return res.satisfiable
 
     def _fixedpoints(self, reachable_from=None, constraints={}, limit=0):
-        s = clingo_enum(limit=limit)
+        project = reachable_from and set(self.keys()).difference(reachable_from)
+        s = clingo_enum(limit=limit, project=project)
         s.add("base", [], self.asp_of_bn())
         e = "fp"
         t2 = "fp"
@@ -436,9 +434,12 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
     def _trapspaces(self, reachable_from=None, subcube={}, limit=0,
                         mode="min", exclude_full=False):
+
+        project = reachable_from and set(self.keys()).difference(reachable_from)
+
         self.assert_pc_encoding()
         solver = clingo_subsets if mode == "min" else clingo_supsets
-        s = solver(limit=limit)
+        s = solver(limit=limit, project=project)
         self.load_eval(s)
         s.load(aspf("mp_attractor.asp"))
         s.add("base", [], self.asp_of_bn())
