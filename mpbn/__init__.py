@@ -37,6 +37,8 @@ import pyeda.boolalg.expr
 from pyeda.boolalg.expr import expr
 sys.setrecursionlimit(max(100000, sys.getrecursionlimit()))
 
+from biodivine_aeon import Bdd, BddVariableSet
+
 __asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
 clingo_options = ["-W", "no-atom-undefined"]
@@ -77,6 +79,74 @@ def s2v(s):
     return 1 if s > 0 else -1
 def v2s(v):
     return 1 if v > 0 else 0
+
+def ba_to_bdd(ba: boolean.BooleanAlgebra, f: boolean.Expression, ctx: BddVariableSet | None = None) -> Bdd:
+    """
+    Takes a `boolean.Expression` (with the associated `boolean.BooleanAlgebra`) and
+    converts it to a `biodivine_aeon.Bdd`. 
+
+    Note that the `Bdd` has an associated `biodivine_aeon.BddVariableSet` context, which maps the 
+    variable IDs to names. You can provide your own context, 
+    """
+    ba_vars = f.symbols
+    variables = sorted([ str(var) for var in ba_vars ])
+    if ctx is None:        
+        ctx = BddVariableSet(variables)
+    else:
+        # Check that all variables that exist in `f` also exist in `ctx`.
+        assert all((ctx.find_variable(var) is not None) for var in variables)
+    def ba_to_bdd_rec(f: boolean.Expression) -> Bdd:
+        if type(f) is ba.TRUE or isinstance(f, minibn._TRUE):
+            return ctx.mk_const(True)
+        if type(f) is ba.FALSE or isinstance(f, minibn._FALSE):
+            return ctx.mk_const(False)        
+        if type(f) is ba.Symbol: 
+            return ctx.mk_literal(str(f.obj), True)
+        if type(f) is ba.NOT:
+            assert len(f.args) == 1, "Cannot transform NOT with more than one argument."
+            return ba_to_bdd_rec(f.args[0]).l_not()
+        if type(f) is ba.AND:
+            result = ctx.mk_const(True)
+            for arg in f.args:
+                result = result.l_and(ba_to_bdd_rec(arg))
+            return result
+        if type(f) is ba.OR:
+            result = ctx.mk_const(False)
+            for arg in f.args:
+                result = result.l_or(ba_to_bdd_rec(arg))
+            return result        
+        raise NotImplementedError(str(f), type(f))
+        
+    return ba_to_bdd_rec(f)
+        
+def bdd_to_dnf(ba: boolean.BooleanAlgebra, f: Bdd) -> boolean.Expression:
+    if f.is_true():
+        return ba.TRUE
+    if f.is_false():
+        return ba.FALSE    
+    ctx = f.__ctx__()
+    # Technically, optimize=True is the default, but just in case.
+    dnf = f.to_dnf(optimize=True)
+    # Maps BDD variables to BooleanAlgebra Symbols.
+    var_to_symbol = { var: ba.Symbol(ctx.get_variable_name(var)) for var in ctx.variable_ids() }
+    ba_clauses = []
+    for clause in dnf:
+        literals = []
+        for (var, value) in clause.items():            
+            if value:
+                literals.append(var_to_symbol[var])
+            else:
+                literals.append(ba.NOT(var_to_symbol[var]))                
+        assert len(literals) > 0
+        if len(literals) == 1:
+            ba_clauses.append(literals[0])
+        else:
+            ba_clauses.append(ba.AND(*literals))
+    assert len(ba_clauses) > 0 
+    if len(ba_clauses) == 1:
+        return ba_clauses[0]
+    else:
+        return ba.OR(*ba_clauses)
 
 def is_unate(ba, f):
     pos_lits = set()
@@ -253,15 +323,32 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             f = self.ba.parse(f)
         f = self._autobool(f)
         if self.auto_dnf:
-            e = expr(str(f).replace("!","~"))
+            original_f = f
+            bdd = ba_to_bdd(self.ba, f)
+            f = bdd_to_dnf(self.ba, bdd)
+            
+            # Run the old pipeline for comparison:
+            e = expr(str(original_f).replace("!","~"))
             e = e.to_dnf()
             if self._simplify is not None:
                 e = e.simplify()
-            f = expr2bpy(e, self.ba)
+            original_f = expr2bpy(e, self.ba)
             if self.try_unate_hard:
-                f = minibn.simplify_dnf(self.ba, f)
+                original_f = minibn.simplify_dnf(self.ba, f)
             elif self._simplify:
-                f = f.simplify()
+                original_f = f.simplify()
+            pyeda_dnf = 1
+            if type(original_f) is self.ba.OR:
+                pyeda_dnf = len(original_f.args)
+            aeon_dnf = 1
+            if type(f) is self.ba.OR:
+                aeon_dnf = len(f.args)
+            if pyeda_dnf < aeon_dnf:
+                print(f"{pyeda_dnf}, {aeon_dnf}, PyEDA wins")
+            if aeon_dnf < pyeda_dnf:
+                print(f"{pyeda_dnf}, {aeon_dnf}, AEON wins")
+            if pyeda_dnf == aeon_dnf:
+                print(f"{pyeda_dnf}, {aeon_dnf}, draw")
         a = self._autokey(a)
         if self.encoding in self.dnf_encodings:
             self._is_unate[a] = is_unate(self.ba, f)
