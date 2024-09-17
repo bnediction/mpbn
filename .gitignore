@@ -5,3 +5,7 @@ dist
 _build
 .ipynb*
 build
+
+# Ignore virtual environments.
+venv
+.venv
