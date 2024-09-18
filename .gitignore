@@ -5,3 +5,10 @@ dist
 _build
 .ipynb*
 build
+
+# Ignore virtual environments.
+venv
+.venv
+
+# MacOS metadata
+.DS_Store
