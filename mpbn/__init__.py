@@ -31,13 +31,11 @@ from colomoto import minibn
 
 from boolean import boolean
 import clingo
-
-from pyeda.boolalg import bdd
-import pyeda.boolalg.expr
-from pyeda.boolalg.expr import expr
 sys.setrecursionlimit(max(100000, sys.getrecursionlimit()))
 
-from biodivine_aeon import Bdd, BddVariableSet
+from .converters import bdd_to_dnf, ba_to_bdd
+from biodivine_aeon import Bdd, BddPointer
+from typing import Optional
 
 __asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
@@ -80,73 +78,36 @@ def s2v(s):
 def v2s(v):
     return 1 if v > 0 else 0
 
-def ba_to_bdd(ba: boolean.BooleanAlgebra, f: boolean.Expression, ctx: BddVariableSet | None = None) -> Bdd:
+def is_unate_symbolic(f: Bdd) -> boolean:
     """
-    Takes a `boolean.Expression` (with the associated `boolean.BooleanAlgebra`) and
-    converts it to a `biodivine_aeon.Bdd`. 
+    Returns `True` if the given `biodivine_aeon.Bdd` represents a unate function
+    (i.e. all arguments are locally monotonic).
 
-    Note that the `Bdd` has an associated `biodivine_aeon.BddVariableSet` context, which maps the 
-    variable IDs to names. You can provide your own context, 
+    The way this is handled is that we test for positive/negative monotonicity by
+    symbolically expressing the inputs where decreasing the input increases the
+    output (i.e. a counterexample to positive monotonicity), or vice versa.
     """
-    ba_vars = f.symbols
-    variables = sorted([ str(var) for var in ba_vars ])
-    if ctx is None:        
-        ctx = BddVariableSet(variables)
-    else:
-        # Check that all variables that exist in `f` also exist in `ctx`.
-        assert all((ctx.find_variable(var) is not None) for var in variables)
-    def ba_to_bdd_rec(f: boolean.Expression) -> Bdd:
-        if type(f) is ba.TRUE or isinstance(f, minibn._TRUE):
-            return ctx.mk_const(True)
-        if type(f) is ba.FALSE or isinstance(f, minibn._FALSE):
-            return ctx.mk_const(False)        
-        if type(f) is ba.Symbol: 
-            return ctx.mk_literal(str(f.obj), True)
-        if type(f) is ba.NOT:
-            assert len(f.args) == 1, "Cannot transform NOT with more than one argument."
-            return ba_to_bdd_rec(f.args[0]).l_not()
-        if type(f) is ba.AND:
-            result = ctx.mk_const(True)
-            for arg in f.args:
-                result = result.l_and(ba_to_bdd_rec(arg))
-            return result
-        if type(f) is ba.OR:
-            result = ctx.mk_const(False)
-            for arg in f.args:
-                result = result.l_or(ba_to_bdd_rec(arg))
-            return result        
-        raise NotImplementedError(str(f), type(f))
+    variables = f.__ctx__().variable_ids()
+    f_false = f.l_not()
+    f_true = f
+    for var in f.support_set():
+        var_is_true = f.__ctx__().mk_literal(var, True)
+        var_is_false = f.__ctx__().mk_literal(var, False)
         
-    return ba_to_bdd_rec(f)
+        f_1_to_0 = f_false.l_and(var_is_true).r_exists(var)
+        f_0_to_1 = f_true.l_and(var_is_false).r_exists(var)
+        is_positive = f_0_to_1.l_and(f_1_to_0).r_exists(variables).l_not().is_true()        
         
-def bdd_to_dnf(ba: boolean.BooleanAlgebra, f: Bdd) -> boolean.Expression:
-    if f.is_true():
-        return ba.TRUE
-    if f.is_false():
-        return ba.FALSE    
-    ctx = f.__ctx__()
-    # Technically, optimize=True is the default, but just in case.
-    dnf = f.to_dnf(optimize=True)
-    # Maps BDD variables to BooleanAlgebra Symbols.
-    var_to_symbol = { var: ba.Symbol(ctx.get_variable_name(var)) for var in ctx.variable_ids() }
-    ba_clauses = []
-    for clause in dnf:
-        literals = []
-        for (var, value) in clause.items():            
-            if value:
-                literals.append(var_to_symbol[var])
-            else:
-                literals.append(ba.NOT(var_to_symbol[var]))                
-        assert len(literals) > 0
-        if len(literals) == 1:
-            ba_clauses.append(literals[0])
-        else:
-            ba_clauses.append(ba.AND(*literals))
-    assert len(ba_clauses) > 0 
-    if len(ba_clauses) == 1:
-        return ba_clauses[0]
-    else:
-        return ba.OR(*ba_clauses)
+        f_0_to_0 = f_false.l_and(var_is_false).r_exists(var)
+        f_1_to_1 = f_true.l_and(var_is_true).r_exists(var)
+        is_negative = f_0_to_0.l_and(f_1_to_1).r_exists(variables).l_not().is_true()
+
+        # An input cannot be both positive and negative at the same time.
+        assert not (is_positive and is_negative)
+
+        if (not is_positive) and (not is_negative):
+            return False
+    return True
 
 def is_unate(ba, f):
     pos_lits = set()
@@ -186,32 +147,44 @@ def is_unate(ba, f):
         return test_monotonicity()
     return False
 
-def asp_of_bdd(bid, b):
-    _rules = dict()
-    def register(node, nid=None):
-        if node is bdd.BDDNODEONE:
-            if nid is not None:
-                _rules[bid] = f"bdd({clingo.String(nid)},1)"
-            return 1
-        elif node is bdd.BDDNODEZERO:
-            if nid is not None:
-                _rules[bid] = f"bdd({clingo.String(nid)},-1)"
-            return -1
-        nid = clingo.String(f"{bid}_n{id(node)}" if nid is None else nid)
-        if nid not in _rules:
-            var = clingo.String(bdd._VARS[node.root].qualname)
-            lo = register(node.lo)
-            hi = register(node.hi)
-            a = f"bdd({nid},{var},{lo},{hi})"
-            _rules[nid] = a
-        return nid
-    register(b.node, bid)
-    return _rules.values()
+def asp_of_bdd(var_name, bdd: Bdd) -> list[str]:
+    """
+    Convert a `biodivine_aeon.Bdd` into a list of `clingo` atoms
+    representing the individual BDD nodes.    
+    """
+    if bdd.is_false():
+        return [f"bdd({clingo.String(var_name)},-1)"]
+    if bdd.is_true():
+        return [f"bdd({clingo.String(var_name)},1)"]
+    
+    _rules = {}
+    def _rec(node: BddPointer, node_name: Optional[str] = None) -> str:
+        if node.is_zero():
+            return "0"
+        if node.is_one():
+            return "1"
+        if node_name is None:
+            node_name = f"{var_name}_n{int(node)}"        
+        node_name_clingo = clingo.String(node_name)
+        if node_name_clingo in _rules:
+            # The node was already declared.
+            return node_name_clingo
+        node_var = bdd.node_variable(node)
+        assert node_var is not None # Only `None` if node is terminal.
+        (lo, hi) = bdd.node_links(node)
+        var = clingo.String(bdd.__ctx__().get_variable_name(node_var))
+        lo = _rec(lo)
+        hi = _rec(hi)
+        atom = f"bdd({node_name_clingo},{var},{lo},{hi})"
+        _rules[node_name_clingo] = atom
+        return node_name_clingo
+    _rec(bdd.root(), var_name)
 
-def bddasp_of_boolfunc(f, i):
-    e = expr(str(f).replace("!","~"))
-    b = bdd.expr2bdd(e)
-    atoms = asp_of_bdd(i, b)
+    return list(_rules.values())
+
+def bddasp_of_boolfunc(ba, f, var_name):
+    f_bdd = ba_to_bdd(ba, f)
+    atoms = asp_of_bdd(var_name, f_bdd)
     return "\n".join((f"{a}." for a in atoms))
 
 def circuitasp_of_boolfunc(f, i, ba):
@@ -245,27 +218,6 @@ def circuitasp_of_boolfunc(f, i, ba):
     root = encode(f)
     atoms.append(f"circuit({fid},root,{root}).\n")
     return "\n".join(atoms)
-
-
-def expr2bpy(ex, ba):
-    """
-    converts a pyeda Boolean expression into a boolean.py one
-    """
-    if isinstance(ex, pyeda.boolalg.expr.Variable):
-        return ba.Symbol(str(ex))
-    elif isinstance(ex, pyeda.boolalg.expr._One):
-        return ba.TRUE
-    elif isinstance(ex, pyeda.boolalg.expr._Zero):
-        return ba.FALSE
-    elif isinstance(ex, pyeda.boolalg.expr.Complement):
-        return ba.NOT(ba.Symbol(str(ex.__invert__())))
-    elif isinstance(ex, pyeda.boolalg.expr.NotOp):
-        return ba.NOT(expr2bpy(ex.x, ba))
-    elif isinstance(ex, pyeda.boolalg.expr.OrOp):
-        return ba.OR(*(expr2bpy(x, ba) for x in ex.xs))
-    elif isinstance(ex, pyeda.boolalg.expr.AndOp):
-        return ba.AND(*(expr2bpy(x, ba) for x in ex.xs))
-    raise NotImplementedError(str(ex), type(ex))
 
 DEFAULT_ENCODING = "mixed-dnf-bdd"
 
@@ -322,33 +274,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         if isinstance(f, str):
             f = self.ba.parse(f)
         f = self._autobool(f)
-        if self.auto_dnf:
-            original_f = f
+        if self.auto_dnf:            
             bdd = ba_to_bdd(self.ba, f)
-            f = bdd_to_dnf(self.ba, bdd)
-            
-            # Run the old pipeline for comparison:
-            e = expr(str(original_f).replace("!","~"))
-            e = e.to_dnf()
-            if self._simplify is not None:
-                e = e.simplify()
-            original_f = expr2bpy(e, self.ba)
-            if self.try_unate_hard:
-                original_f = minibn.simplify_dnf(self.ba, f)
-            elif self._simplify:
-                original_f = f.simplify()
-            pyeda_dnf = 1
-            if type(original_f) is self.ba.OR:
-                pyeda_dnf = len(original_f.args)
-            aeon_dnf = 1
-            if type(f) is self.ba.OR:
-                aeon_dnf = len(f.args)
-            if pyeda_dnf < aeon_dnf:
-                print(f"{pyeda_dnf}, {aeon_dnf}, PyEDA wins")
-            if aeon_dnf < pyeda_dnf:
-                print(f"{pyeda_dnf}, {aeon_dnf}, AEON wins")
-            if pyeda_dnf == aeon_dnf:
-                print(f"{pyeda_dnf}, {aeon_dnf}, draw")
+            f = bdd_to_dnf(self.ba, bdd)                        
         a = self._autokey(a)
         if self.encoding in self.dnf_encodings:
             self._is_unate[a] = is_unate(self.ba, f)
@@ -398,13 +326,13 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             elif f_encoding == "dnf":
                 facts.extend(encode_dnf(f))
             elif f_encoding == "bdd":
-                facts.append(bddasp_of_boolfunc(f, n))
+                facts.append(bddasp_of_boolfunc(self.ba, f, n))
             elif f_encoding == "mixed-dnf-bdd":
                 facts.extend(encode_dnf(f))
                 if self._is_unate[n]:
                     facts.append(f"unate(\"{n}\").")
                 else:
-                    facts.append(bddasp_of_boolfunc(f, n))
+                    facts.append(bddasp_of_boolfunc(self.ba, f, n))
             elif f_encoding == "circuit":
                 facts.append(circuitasp_of_boolfunc(f, n, self.ba))
         return "".join(facts)
