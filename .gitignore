@@ -9,3 +9,6 @@ build
 # Ignore virtual environments.
 venv
 .venv
+
+# MacOS metadata
+.DS_Store
