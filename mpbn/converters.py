@@ -1,33 +1,79 @@
 import networkx as nx
-from pyeda.boolalg.minimization import *
-import pyeda.boolalg.expr
-from pyeda.inter import expr
-
+from biodivine_aeon import BddVariableSet, Bdd, BddValuation
 from colomoto import minibn
+from boolean import boolean
 
-def expr2str(ex):
+def ba_to_bdd(ba: boolean.BooleanAlgebra, f: boolean.Expression, ctx: BddVariableSet | None = None) -> Bdd:
     """
-    converts a pyeda Boolean expression to string representation
+    Takes a `boolean.Expression` (with the associated `boolean.BooleanAlgebra`) and
+    converts it to a `biodivine_aeon.Bdd`. 
+
+    Note that the `Bdd` has an associated `biodivine_aeon.BddVariableSet` context, which maps the 
+    variable IDs to names. You can provide your own context, or one will be created for you
+    (to access the underlying context object, use `bdd.__ctx__()`).
     """
-    def _protect(e):
-        if isinstance(e, (pyeda.boolalg.expr.OrOp, pyeda.boolalg.expr.AndOp)):
-            return f"({expr2str(e)})"
-        return expr2str(e)
-    if isinstance(ex, pyeda.boolalg.expr.Variable):
-        return str(ex)
-    elif isinstance(ex, pyeda.boolalg.expr._One):
-        return "1"
-    elif isinstance(ex, pyeda.boolalg.expr._Zero):
-        return "0"
-    elif isinstance(ex, pyeda.boolalg.expr.Complement):
-        return f"!{_protect(ex.__invert__())}"
-    elif isinstance(ex, pyeda.boolalg.expr.NotOp):
-        return f"!{_protect(ex.x)}"
-    elif isinstance(ex, pyeda.boolalg.expr.OrOp):
-        return " | ".join(map(_protect, ex.xs))
-    elif isinstance(ex, pyeda.boolalg.expr.AndOp):
-        return " & ".join(map(_protect, ex.xs))
-    raise NotImplementedError(str(ex), type(ex))
+    ba_vars = f.symbols
+    variables = sorted([ str(var) for var in ba_vars ])
+    if ctx is None:        
+        ctx = BddVariableSet(variables)
+    else:
+        # Check that all variables that exist in `f` also exist in `ctx`.
+        assert all((ctx.find_variable(var) is not None) for var in variables)
+    def ba_to_bdd_rec(f: boolean.Expression) -> Bdd:
+        if type(f) is ba.TRUE or isinstance(f, minibn._TRUE):
+            return ctx.mk_const(True)
+        if type(f) is ba.FALSE or isinstance(f, minibn._FALSE):
+            return ctx.mk_const(False)        
+        if type(f) is ba.Symbol: 
+            return ctx.mk_literal(str(f.obj), True)
+        if type(f) is ba.NOT:
+            assert len(f.args) == 1, "Cannot transform NOT with more than one argument."
+            return ba_to_bdd_rec(f.args[0]).l_not()
+        if type(f) is ba.AND:
+            result = ctx.mk_const(True)
+            for arg in f.args:
+                result = result.l_and(ba_to_bdd_rec(arg))
+            return result
+        if type(f) is ba.OR:
+            result = ctx.mk_const(False)
+            for arg in f.args:
+                result = result.l_or(ba_to_bdd_rec(arg))
+            return result        
+        raise NotImplementedError(str(f), type(f))
+        
+    return ba_to_bdd_rec(f)
+        
+def bdd_to_dnf(ba: boolean.BooleanAlgebra, f: Bdd) -> boolean.Expression:
+    """
+    Convert a `biodivine_aeon.Bdd` to a `boolean.Expression` in disjunctive normal form.
+    """
+    if f.is_true():
+        return ba.TRUE
+    if f.is_false():
+        return ba.FALSE    
+    ctx = f.__ctx__()
+    # Technically, `optimize=True` should be set by default, but just in case.
+    dnf = f.to_dnf(optimize=True)
+    # Maps BDD variables to BooleanAlgebra Symbols.
+    var_to_symbol = { var: ba.Symbol(ctx.get_variable_name(var)) for var in ctx.variable_ids() }
+    ba_clauses = []
+    for clause in dnf:
+        literals = []
+        for (var, value) in clause.items():            
+            if value:
+                literals.append(var_to_symbol[var])
+            else:
+                literals.append(ba.NOT(var_to_symbol[var]))                
+        assert len(literals) > 0
+        if len(literals) == 1:
+            ba_clauses.append(literals[0])
+        else:
+            ba_clauses.append(ba.AND(*literals))
+    assert len(ba_clauses) > 0 
+    if len(ba_clauses) == 1:
+        return ba_clauses[0]
+    else:
+        return ba.OR(*ba_clauses)
 
 
 def bn_of_asynchronous_transition_graph(adyn, names,
@@ -50,9 +96,7 @@ def bn_of_asynchronous_transition_graph(adyn, names,
     assert n == len(names), "list of component names and dimension of configuraitons seem different"
     assert adyn.number_of_nodes() == 2**n, "unexpected number of nodes in the transition graph"
 
-    def expr_of_cfg(x):
-        e = "&".join(f"{'~' if not v else ''}{names[i]}" for i, v in enumerate(x))
-        return f"({e})"
+    bdd_ctx = BddVariableSet(names)
 
     f = []
     for i in range(n):
@@ -63,18 +107,18 @@ def bn_of_asynchronous_transition_graph(adyn, names,
             y = dx if tuple(dx) in adyn[x] else x
             target = y[i]
             if target:
-                pos.append(x)
-        if not pos:
-            f.append(expr("0"))
+                pos.append(BddValuation(bdd_ctx, list(x)))
+        if len(pos) == 0:
+            f.append(bdd_ctx.mk_false())
         else:
-            e = expr("|".join(map(expr_of_cfg,pos)))
-            e, = espresso_exprs(e.to_dnf())
-            f.append(e)
-    f = map(expr2str, f)
-    f = bn_class(dict(zip(names, f)))
+            f.append(bdd_ctx.mk_dnf(pos))
+
+    bn = bn_class()
+    for (i, name) in enumerate(names):
+        bn[name] = bdd_to_dnf(bn.ba, f[i])
     if simplify:
-        f = f.simplify()
-    return f
+        bn = bn.simplify()
+    return bn
 
 if __name__ == "__main__":
     import mpbn
