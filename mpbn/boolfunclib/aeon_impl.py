@@ -130,7 +130,7 @@ def asp_of_bdd(var_name, bdd: Bdd) -> list[str]:
     _rules = {}
     def _rec(node: BddPointer, node_name: Optional[str] = None) -> str:
         if node.is_zero():
-            return "0"
+            return "-1"
         if node.is_one():
             return "1"
         if node_name is None:
