@@ -40,6 +40,6 @@ jobs:
     - name: build
       run: |
         cd conda
-        conda build --user colomoto --token $ANACONDA_TOKEN -c defaults -c conda-forge -c potassco -c colomoto .
+        conda build --user colomoto --token $ANACONDA_TOKEN -c defaults -c conda-forge -c potassco -c colomoto -c daemontus .
       env:
         ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
