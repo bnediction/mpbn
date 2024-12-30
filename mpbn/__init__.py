@@ -33,10 +33,6 @@ from boolean import boolean
 import clingo
 sys.setrecursionlimit(max(100000, sys.getrecursionlimit()))
 
-from .converters import bdd_to_dnf, ba_to_bdd
-from biodivine_aeon import Bdd, BddPointer
-from typing import Optional
-
 __asplibdir__ = os.path.realpath(os.path.join(os.path.dirname(__file__), "asplib"))
 
 clingo_options = ["-W", "no-atom-undefined"]
@@ -78,38 +74,7 @@ def s2v(s):
 def v2s(v):
     return 1 if v > 0 else 0
 
-def is_unate_symbolic(f: Bdd) -> boolean:
-    """
-    Returns `True` if the given `biodivine_aeon.Bdd` represents a unate function
-    (i.e. all arguments are locally monotonic).
-
-    The way this is handled is that we test for positive/negative monotonicity by
-    symbolically expressing the inputs where decreasing the input increases the
-    output (i.e. a counterexample to positive monotonicity), or vice versa.
-    """
-    variables = f.__ctx__().variable_ids()
-    f_false = f.l_not()
-    f_true = f
-    for var in f.support_set():
-        var_is_true = f.__ctx__().mk_literal(var, True)
-        var_is_false = f.__ctx__().mk_literal(var, False)
-        
-        f_1_to_0 = f_false.l_and(var_is_true).r_exists(var)
-        f_0_to_1 = f_true.l_and(var_is_false).r_exists(var)
-        is_positive = f_0_to_1.l_and(f_1_to_0).r_exists(variables).l_not().is_true()        
-        
-        f_0_to_0 = f_false.l_and(var_is_false).r_exists(var)
-        f_1_to_1 = f_true.l_and(var_is_true).r_exists(var)
-        is_negative = f_0_to_0.l_and(f_1_to_1).r_exists(variables).l_not().is_true()
-
-        # An input cannot be both positive and negative at the same time.
-        assert not (is_positive and is_negative)
-
-        if (not is_positive) and (not is_negative):
-            return False
-    return True
-
-def is_unate(ba, f):
+def is_dnf_unate(ba, f):
     pos_lits = set()
     neg_lits = set()
     def is_lit(f):
@@ -147,46 +112,6 @@ def is_unate(ba, f):
         return test_monotonicity()
     return False
 
-def asp_of_bdd(var_name, bdd: Bdd) -> list[str]:
-    """
-    Convert a `biodivine_aeon.Bdd` into a list of `clingo` atoms
-    representing the individual BDD nodes.    
-    """
-    if bdd.is_false():
-        return [f"bdd({clingo.String(var_name)},-1)"]
-    if bdd.is_true():
-        return [f"bdd({clingo.String(var_name)},1)"]
-    
-    _rules = {}
-    def _rec(node: BddPointer, node_name: Optional[str] = None) -> str:
-        if node.is_zero():
-            return "0"
-        if node.is_one():
-            return "1"
-        if node_name is None:
-            node_name = f"{var_name}_n{int(node)}"        
-        node_name_clingo = clingo.String(node_name)
-        if node_name_clingo in _rules:
-            # The node was already declared.
-            return node_name_clingo
-        node_var = bdd.node_variable(node)
-        assert node_var is not None # Only `None` if node is terminal.
-        (lo, hi) = bdd.node_links(node)
-        var = clingo.String(bdd.__ctx__().get_variable_name(node_var))
-        lo = _rec(lo)
-        hi = _rec(hi)
-        atom = f"bdd({node_name_clingo},{var},{lo},{hi})"
-        _rules[node_name_clingo] = atom
-        return node_name_clingo
-    _rec(bdd.root(), var_name)
-
-    return list(_rules.values())
-
-def bddasp_of_boolfunc(ba, f, var_name):
-    f_bdd = ba_to_bdd(ba, f)
-    atoms = asp_of_bdd(var_name, f_bdd)
-    return "\n".join((f"{a}." for a in atoms))
-
 def circuitasp_of_boolfunc(f, i, ba):
     atoms = []
     fid = clingo.String(i)
@@ -220,6 +145,8 @@ def circuitasp_of_boolfunc(f, i, ba):
     return "\n".join(atoms)
 
 DEFAULT_ENCODING = "mixed-dnf-bdd"
+DEFAULT_BOOLFUNCLIB = os.environ.get("MPBN_BOOLFUNCLIB", "aeon")
+SUPPORTED_BOOLFUNCLIBS = ["aeon", "pyeda"]
 
 class MPBooleanNetwork(minibn.BooleanNetwork):
     """
@@ -240,7 +167,8 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def __init__(self, bn=minibn.BooleanNetwork(), auto_dnf=True,
                         simplify=False,
                         try_unate_hard=False,
-                        encoding=DEFAULT_ENCODING):
+                        encoding=DEFAULT_ENCODING,
+                        boolfunclib=DEFAULT_BOOLFUNCLIB):
         """
         Constructor for :py:class:`.MPBoooleanNetwork`.
 
@@ -249,6 +177,9 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             :py:class:`colomoto.minibn.BooleanNetwork` constructor
         :param bool auto_dnf: if ``False``, turns off automatic DNF
             transformation of local functions
+        :param str boolfunlib: library to use for Boolean function manipulation
+            among ``"aeon"`` (default) or ``"pyeda"``. Default can be overriden with
+            ``MPBN_BOOLFUNCLIB`` environment variable.
 
         Examples:
 
@@ -258,11 +189,21 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         >>> mbn = MPBooleanNetwork(bn)
         """
         assert encoding in self.supported_encodings
+        assert boolfunclib in SUPPORTED_BOOLFUNCLIBS
         self.auto_dnf = auto_dnf and encoding in self.dnf_encodings
         self.encoding = encoding
         self.try_unate_hard = try_unate_hard
         self._simplify = simplify
         self._is_unate = dict()
+
+        self._boolfunclib = boolfunclib
+        __boolfunclib_symbols = (
+            "make_dnf_boolfunc",
+            "bddasp_of_boolfunc",
+            )
+        self._bf_impl = __import__(f"mpbn.boolfunclib.{boolfunclib}_impl",
+                                           fromlist=__boolfunclib_symbols)
+
         super(MPBooleanNetwork, self).__init__(bn)
 
     def __setitem__(self, a, f):
@@ -274,12 +215,13 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         if isinstance(f, str):
             f = self.ba.parse(f)
         f = self._autobool(f)
-        if self.auto_dnf:            
-            bdd = ba_to_bdd(self.ba, f)
-            f = bdd_to_dnf(self.ba, bdd)                        
+        if self.auto_dnf:
+            f = self._bf_impl.make_dnf_boolfunc(self.ba, f,
+                                simplify=self._simplify,
+                                try_unate_hard=self.try_unate_hard)
         a = self._autokey(a)
         if self.encoding in self.dnf_encodings:
-            self._is_unate[a] = is_unate(self.ba, f)
+            self._is_unate[a] = is_dnf_unate(self.ba, f)
             if self.encoding == "unate-dnf":
                 assert self._is_unate[a], f"'{f}' seems not unate. Try simplify()?"
         return super().__setitem__(a, f)
@@ -326,13 +268,13 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             elif f_encoding == "dnf":
                 facts.extend(encode_dnf(f))
             elif f_encoding == "bdd":
-                facts.append(bddasp_of_boolfunc(self.ba, f, n))
+                facts.append(self._bf_impl.bddasp_of_boolfunc(self.ba, f, n))
             elif f_encoding == "mixed-dnf-bdd":
                 facts.extend(encode_dnf(f))
                 if self._is_unate[n]:
                     facts.append(f"unate(\"{n}\").")
                 else:
-                    facts.append(bddasp_of_boolfunc(self.ba, f, n))
+                    facts.append(self._bf_impl.bddasp_of_boolfunc(self.ba, f, n))
             elif f_encoding == "circuit":
                 facts.append(circuitasp_of_boolfunc(f, n, self.ba))
         return "".join(facts)

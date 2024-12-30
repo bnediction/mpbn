@@ -17,6 +17,9 @@ def main():
     ap.add_argument("--encoding", default=mpbn.DEFAULT_ENCODING,
                     choices=mpbn.MPBooleanNetwork.supported_encodings,
                     help=f"Encoding method (default: {mpbn.DEFAULT_ENCODING})")
+    ap.add_argument("--boolfunclib", default="aeon",
+                    choices=mpbn.SUPPORTED_BOOLFUNCLIBS,
+                    help=f"Backend lib for Boolean functions (default: {mpbn.DEFAULT_BOOLFUNCLIB})")
     ap.add_argument("--input-is-dnf", action="store_true", default=False,
                     help="Functions are already in DNF form")
     ap.add_argument("--simplify", action="store_true", default=False,
@@ -27,6 +30,7 @@ def main():
                     help="Returns only the number of solutions")
     args = ap.parse_args()
     mbn = mpbn.MPBooleanNetwork(args.bnet_file, encoding=args.encoding,
+                    boolfunclib=args.boolfunclib,
                     auto_dnf=not args.input_is_dnf,
                     simplify=args.simplify,
                     try_unate_hard=args.try_unate_hard)
