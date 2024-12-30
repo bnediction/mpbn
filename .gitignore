@@ -1,2 +1,4 @@
 # Ignore benchmark runs
 _run_*
+venv
+.venv
