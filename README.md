@@ -17,7 +17,7 @@ pip install mpbn
 
 ### Using conda
 ```
-conda install -c colomoto -c potassco mpbn
+conda install -c colomoto -c potassco -c daemontus mpbn
 ```
 
 ## Usage
