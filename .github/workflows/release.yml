@@ -31,15 +31,18 @@ jobs:
     - run: sed -i "s:9999:${VERSION//*v/}:" setup.py conda/meta.yaml
       env:
           VERSION: ${{ github.ref }}
-    - uses: s-weigand/setup-conda@v1
+    - uses: conda-incubator/setup-miniconda@v3.1.0
+      with:
+          miniconda-version: "latest"
     - name: prepare
       run: |
         conda install -y anaconda-client conda-build conda-verify
         conda config --set channel_priority strict
         conda config --set anaconda_upload yes
+        conda remove --name base -y conda-anaconda-telemetry
     - name: build
       run: |
         cd conda
-        conda build --user colomoto --token $ANACONDA_TOKEN -c defaults -c conda-forge -c potassco -c colomoto -c daemontus .
+        conda build --user colomoto --token $ANACONDA_TOKEN -c conda-forge -c potassco -c colomoto -c daemontus .
       env:
         ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
