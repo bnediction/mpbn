@@ -58,9 +58,9 @@ def ba_to_bdd(ba: boolean.BooleanAlgebra, f: boolean.Expression, ctx: BddVariabl
         # Check that all variables that exist in `f` also exist in `ctx`.
         assert all((ctx.find_variable(var) is not None) for var in variables)
     def ba_to_bdd_rec(f: boolean.Expression) -> Bdd:
-        if type(f) is ba.TRUE or isinstance(f, minibn._TRUE):
+        if type(f) is ba.TRUE or isinstance(f, boolean._TRUE):
             return ctx.mk_const(True)
-        if type(f) is ba.FALSE or isinstance(f, minibn._FALSE):
+        if type(f) is ba.FALSE or isinstance(f, boolean._FALSE):
             return ctx.mk_const(False)        
         if type(f) is ba.Symbol: 
             return ctx.mk_literal(str(f.obj), True)
