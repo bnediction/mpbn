@@ -188,7 +188,7 @@ def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10, emit=Non
     I = set(f)
     n = len(f)
     def filter_reachable_attractors(A, x):
-        H = spread(f, x, I, n)
+        H = spread(f, x, I, n) 
         return [(ia,a) for (ia,a) in A if is_subhypercube(a, (x,H))]
     k = 1
     x = x.copy()
@@ -201,7 +201,7 @@ def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10, emit=Non
         if k % refresh_rate == 0:
             A = filter_reachable_attractors(A, x)
         k += 1
-    return A[0][0]
+    return None if (len(A)==0) else A[0][0]
 
 def sample_trace(f, mem, x, A, depth, W):
     if not isinstance(f, MPBNSim): f = MPBNSim(f)
@@ -257,6 +257,8 @@ def estimate_reachable_attractors_probabilities(f, x, A, nb_sims, depth, W):
     C = {ia: 0 for (ia,_) in A}
     for _ in tqdm(range(nb_sims)):
         ia = sample_reachable_attractor(f, mem, x, A, depth, W)
+        if (ia is None):
+        	continue
         C[ia] += 1
     for ia, _ in A:
         C[ia] = (C[ia]*100) / nb_sims
