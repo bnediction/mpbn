@@ -183,16 +183,19 @@ def is_subhypercube(a, b):
     return H.issubset(G) and \
             not [i for i in set(x).difference(G) if x[i] != y[i]]
 
-def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10):
+def sample_reachable_attractor(f, mem, x, A, depth, W, refresh_rate=10, emit=None):
+    if not isinstance(f, MPBNSim): f = MPBNSim(f)
     I = set(f)
     n = len(f)
     def filter_reachable_attractors(A, x):
-        H = mpbn_sim.spread(f, x, I, n) 
+        H = spread(f, x, I, n) 
         return [(ia,a) for (ia,a) in A if is_subhypercube(a, (x,H))]
     k = 1
     x = x.copy()
     A = filter_reachable_attractors(A, x)
     while len(A) > 1:
+        if emit is not None:
+            emit(x)
         if not step(f, mem, x, depth, W):
             k = 0
         if k % refresh_rate == 0:
