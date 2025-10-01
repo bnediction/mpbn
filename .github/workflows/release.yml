@@ -2,7 +2,7 @@ name: Release
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   pypi-publish:
@@ -33,10 +33,10 @@ jobs:
           VERSION: ${{ github.ref }}
     - uses: conda-incubator/setup-miniconda@v3.1.0
       with:
-          miniconda-version: "latest"
+          python-version: "3.12"
     - name: prepare
       run: |
-        conda install -y anaconda-client conda-build conda-verify
+        conda install -y python=3.12 anaconda-client conda-build conda-verify
         conda config --set channel_priority strict
         conda config --set anaconda_upload yes
         conda remove --name base -y conda-anaconda-telemetry
