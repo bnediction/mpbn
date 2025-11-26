@@ -74,7 +74,8 @@ def s2v(s):
 def v2s(v):
     return 1 if v > 0 else 0
 
-def is_dnf_unate(ba, f):
+
+def is_dnf(ba, f, test_unate=False):
     pos_lits = set()
     neg_lits = set()
     def is_lit(f):
@@ -98,6 +99,8 @@ def is_dnf_unate(ba, f):
         return False
 
     def test_monotonicity():
+        if not test_unate:
+            return True
         both = pos_lits.intersection(neg_lits)
         return not both
 
@@ -111,6 +114,9 @@ def is_dnf_unate(ba, f):
                 return False
         return test_monotonicity()
     return False
+
+def is_dnf_unate(ba, f):
+    return is_dnf(ba, f, test_unate=True)
 
 def circuitasp_of_boolfunc(f, i, ba):
     atoms = []
@@ -215,7 +221,7 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
         if isinstance(f, str):
             f = self.ba.parse(f)
         f = self._autobool(f)
-        if self.auto_dnf:
+        if self.auto_dnf and (not is_dnf(self.ba, f) or self._simplify):
             f = self._bf_impl.make_dnf_boolfunc(self.ba, f,
                                 simplify=self._simplify,
                                 try_unate_hard=self.try_unate_hard)
