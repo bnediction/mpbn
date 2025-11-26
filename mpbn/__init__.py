@@ -151,7 +151,7 @@ def circuitasp_of_boolfunc(f, i, ba):
     return "\n".join(atoms)
 
 DEFAULT_ENCODING = "mixed-dnf-bdd"
-DEFAULT_BOOLFUNCLIB = os.environ.get("MPBN_BOOLFUNCLIB", "aeon")
+DEFAULT_BOOLFUNCLIB = os.environ.get("MPBN_BOOLFUNCLIB", "pyeda")
 SUPPORTED_BOOLFUNCLIBS = ["aeon", "pyeda"]
 
 class MPBooleanNetwork(minibn.BooleanNetwork):
