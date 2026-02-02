@@ -21,6 +21,7 @@ requirements:
     - colomoto_jupyter >=0.8.0
     - clingo >=5.4
     - biodivine_aeon >=1.0.1
+    - pyeda
 
 test:
     imports:
