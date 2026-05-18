@@ -416,17 +416,28 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
 
 
     def _trapspaces(self, reachable_from=None, subcube={}, limit=0,
-                        mode="min", exclude_full=False):
+                        mode="min", exclude_full=False,
+                        enclosing=None):
         self.assert_pc_encoding()
 
         rules = []
         rules.append(self.asp_of_bn())
         rules.append(self.rules_eval())
-        rules.append(open(aspf("mp_attractor.asp")).read())
-        rules.append("#show attractor/2.")
 
         e = "__a"
         t2 = "final"
+        rules.append(f"timepoint({e},{t2}).")
+        rules.append(f"mp_reach({e},{t2},N,V) :- mp_eval({e},{t2},N,V).")
+        rules.append(f"attractor(N,V) :- mp_reach({e},{t2},N,V).")
+
+        if enclosing:
+            rules += [" mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(s))
+                    for (n,s) in enclosing.items()]
+        else:
+            rules += [f"1 {{ mp_reach({e},{t2},N,-1);mp_reach({e},{t2},N,1) }} :- node(N)."]
+
+        rules.append("#show attractor/2.")
+
         if exclude_full and not subcube:
             rules.append(f"{{ mp_reach({e},{t2},N,(-1;1)): node(N) }} {len(self)*2-1}.")
         if reachable_from:
@@ -444,7 +455,13 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
             rules.append(":- mp_reach({},{},\"{}\",{}).".format(e,t2,n,s2v(1-b)))
 
         project = reachable_from and set(self.keys()).difference(reachable_from)
-        solver = clingo_subsets if mode == "min" else clingo_supsets
+        match mode:
+            case "min":
+                solver = clingo_subsets
+            case "max":
+                solver = clingo_supsets
+            case None:
+                solver = clingo_enum
         s = solver(limit=limit, project=project)
         self._ground_rules(s, rules)
         return s
@@ -476,6 +493,16 @@ class MPBooleanNetwork(minibn.BooleanNetwork):
     def _count_trapspaces(self, *args, **kwargs):
         s = self._trapspaces(*args, **kwargs)
         return sum((1 for _ in s.solve(yield_=True)))
+
+    def principal_trapspace(self, configuration):
+        """
+        Returns the smallest trapspace that encloses the given configuration.
+        """
+        for n in self:
+            if n not in configuration:
+                raise TypeError(f"Invalid configuration: state of node {n} is not defined")
+        it = self._yield_trapspaces(enclosing=configuration, mode=None)
+        return next(it)
 
     def attractors(self, reachable_from=None, constraints={}, limit=0, star='*'):
         """
